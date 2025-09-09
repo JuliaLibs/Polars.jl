@@ -1,0 +1,4 @@
+name = "Polars"
+uuid = "df689097-a12c-47ce-bf0a-a4350ab78357"
+authors = ["Clouds Flowing <clouds.flowing@gmail.com>"]
+version = "0.1.0"
