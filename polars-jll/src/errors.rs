@@ -1,7 +1,7 @@
 use jlrs::data::managed::{ccall_ref::CCallRefRet, string::StringRet};
 pub use jlrs::prelude::*;
 
-use crate::{leak_string, leak_value};
+use crate::utils::{leak_string, leak_value};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]

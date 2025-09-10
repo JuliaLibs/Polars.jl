@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use jlrs::prelude::*;
 
-use crate::{leak_value, CCallResult};
+use crate::{utils::leak_value, CCallResult};
 
 
 #[derive(Debug, OpaqueType)]
