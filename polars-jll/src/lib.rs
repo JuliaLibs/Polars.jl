@@ -20,6 +20,8 @@ julia_module!{
   fn polars_version() -> StringRet;
 
   struct polars_error_t;
+  in polars_error_t fn new(msg: JuliaString) -> CCallRefRet<polars_error_t> as polars_error_t;
+  in polars_error_t fn message(&self) -> StringRet as polars_error_message;
 }
 
 pub fn polars_version() -> StringRet {
