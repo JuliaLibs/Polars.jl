@@ -54,8 +54,31 @@ pub(crate) fn leak_value<T: ConstructType + IntoJulia>(value: T) -> CCallRefRet<
   }
 }
 
+pub(crate) struct IOWrapper<'scope, 'data, T: Target<'scope>> {
+  target: &'data T,
+  io: &'data CCallRef<'scope, IO>,
+}
+
+impl<'scope, 'data, T: Target<'scope>> IOWrapper<'scope, 'data, T> {
+  pub fn new(target: &'data T, io: &'data CCallRef<'scope, IO>) -> Self {
+    Self { target, io }
+  }
+}
+
+impl<'scope, 'data, T: Target<'scope>> std::io::Write for IOWrapper<'scope, 'data, T> {
+  fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    unsafe_write(self.target, self.io, buf)
+      .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    Ok(buf.len())
+  }
+
+  fn flush(&mut self) -> std::io::Result<()> {
+    Ok(())
+  }
+}
+
 /// unsafe_write(io::IO, ref, nbytes::UInt)
-pub(crate) fn unsafe_write<'tgt, T: Target<'tgt>>(tgt: T, io: CCallRef<IO>, bytes: &[u8]) -> JlrsResult<()> {
+pub(crate) fn unsafe_write<'scope, T: Target<'scope>>(tgt: &T, io: &CCallRef<'scope, IO>, bytes: &[u8]) -> JlrsResult<()> {
   tgt.local_scope::<_, 3>(|mut frame| {
     // unsafe_write(s::T, p::Ptr{UInt8}, n::UInt)
     let unsafe_write = inline_static_ref!(UNSAFE_WRITE_FUNCTION, Value, "Base.unsafe_write", frame);
