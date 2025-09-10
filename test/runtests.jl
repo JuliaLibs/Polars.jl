@@ -3,14 +3,11 @@ using Polars, Test
 
 @testset "Basic tests" begin
   println("Polars version: ", Polars.version())
-  @test Polars.version() != ""
-  err = Polars.polars_error_t("hello")
-  println(err)
-  @test Polars.message(err) == "hello"
+  @test Polars.version() == "0.50.0"
 end
 
 @testset "DataFrame tests" begin
-  df = Polars.polars_dataframe_t()
+  df = Polars.DataFrame()
   @test Polars.height(df) == 0
   @test size(df) == 0
   Polars.write_parquet(df, "test.parquet")
@@ -20,9 +17,11 @@ end
 end
 
 @testset "Column tests" begin
-  col = Polars.polars_column_t("mycol")
+  col = Polars.Column("mycol")
   @test size(col) == 0
-  df = Polars.polars_dataframe_t([col])
+  dtype = Polars.dtype(col)
+  println("Column dtype: ", dtype)
+  df = Polars.DataFrame([col])
   @test Polars.height(df) == 0
   show(df)
 end

@@ -81,9 +81,7 @@ impl<'scope, 'data, T> TypedVecExt<'scope, 'data, T> for TypedVec<'scope, 'data,
           let val = unsafe { val.track_shared()? };
           Ok(f(&val))
         },
-        None => {
-          Err(JlrsError::exception("Could not load column"))?
-        }
+        None => Err(JlrsError::exception("Could not load column"))?,
       })
       .collect()
   }

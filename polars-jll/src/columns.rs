@@ -1,7 +1,7 @@
 use polars::prelude::*;
-use jlrs::prelude::*;
+use jlrs::{data::managed::ccall_ref::CCallRefRet, prelude::*};
 
-use crate::{utils::leak_value, CCallResult};
+use crate::{polars_value_type_t, utils::leak_value, CCallResult};
 
 
 #[derive(Debug, OpaqueType)]
@@ -18,5 +18,9 @@ impl polars_column_t {
 
   pub fn len(&self) -> usize {
     self.inner.len()
+  }
+
+  pub fn dtype(&self) -> CCallRefRet<polars_value_type_t> {
+    leak_value(polars_value_type_t { inner: self.inner.dtype().clone() })
   }
 }

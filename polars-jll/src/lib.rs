@@ -11,12 +11,14 @@ pub mod utils;
 pub mod errors;
 pub mod columns;
 pub mod frames;
+pub mod values;
 
 pub type CCallResult<T> = JlrsResult<CCallRefRet<T>>;
 
 pub use errors::polars_error_t;
 pub use frames::polars_dataframe_t;
 pub use columns::polars_column_t;
+pub use values::polars_value_type_t;
 
 use crate::utils::TypedVec;
 
@@ -40,6 +42,10 @@ julia_module!{
   struct polars_column_t;
   in polars_column_t fn new_empty(name: JuliaString) -> CCallResult<polars_column_t> as polars_column_new_empty;
   in polars_column_t fn len(&self) -> usize as polars_column_len;
+  in polars_column_t fn dtype(&self) -> CCallRefRet<polars_value_type_t> as polars_column_dtype;
+
+  struct polars_value_type_t;
+  in polars_value_type_t fn display(&self) -> StringRet as polars_value_type_display;
 }
 
 pub fn polars_version() -> StringRet {
