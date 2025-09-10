@@ -1,17 +1,16 @@
 use core::panic;
 
 use jlrs::{
-  convert::into_julia::IntoJulia,
-  data::{
+  convert::into_julia::IntoJulia, data::{
     managed::{ccall_ref::CCallRefRet, string::StringRet, value::typed::TypedValue},
     types::construct_type::ConstructType
-  },
-  prelude::*,
-  weak_handle,
+  }, prelude::*, weak_handle
 };
 
 pub mod errors;
 pub mod frames;
+
+pub type CCallResult<T> = JlrsResult<CCallRefRet<T>>;
 
 pub use errors::polars_error_t;
 pub use frames::polars_dataframe_t;
@@ -28,6 +27,8 @@ julia_module!{
   struct polars_dataframe_t;
   in polars_dataframe_t fn new_empty() -> CCallRefRet<polars_dataframe_t> as polars_dataframe_t;
   in polars_dataframe_t fn height(&self) -> usize as polars_dataframe_height;
+  in polars_dataframe_t fn read_parquet(path: JuliaString) -> CCallResult<polars_dataframe_t> as polars_dataframe_read_parquet;
+  in polars_dataframe_t fn write_parquet(&mut self, path: JuliaString) -> JlrsResult<()> as polars_dataframe_write_parquet;
 }
 
 pub fn polars_version() -> StringRet {
