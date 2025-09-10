@@ -1,3 +1,6 @@
 .vscode
 JuliaManifest.toml
 Manifest.toml
+
+/Cargo.lock
+/target

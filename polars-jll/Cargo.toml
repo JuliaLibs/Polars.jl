@@ -1,0 +1,12 @@
+[package]
+name = "polars-jll"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "polars"
+crate-type = ["cdylib"]
+
+[dependencies]
+jlrs = { git = "https://github.com/Taaitaaiger/jlrs", features = ["jlrs-derive", "ccall"] }
+polars = "0.50.0"

@@ -2,3 +2,12 @@ name = "Polars"
 uuid = "df689097-a12c-47ce-bf0a-a4350ab78357"
 authors = ["Clouds Flowing <clouds.flowing@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+JlrsCore = "29be08bc-e5fd-4da2-bbc1-72011c6ea2c9"
+
+[compat]
+# JlrsCore = "0.5.0"
+
+[sources]
+JlrsCore = { url = "https://github.com/Taaitaaiger/JlrsCore.jl" }
