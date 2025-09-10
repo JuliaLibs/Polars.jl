@@ -1,17 +1,30 @@
 use polars::prelude::*;
-use jlrs::{data::{managed::ccall_ref::{CCallRef, CCallRefRet}, types::abstract_type::IO}, error::JlrsError, prelude::*, weak_handle};
+use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, value::typed::TypedValue}, types::abstract_type::IO}, error::JlrsError, prelude::*, weak_handle};
 
-use crate::{leak_value, CCallResult, IOWrapper};
+use crate::{leak_value, polars_column_t, CCallResult, IOWrapper};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
 pub struct polars_dataframe_t {
-  inner: DataFrame,
+  pub(crate) inner: DataFrame,
 }
 
 impl polars_dataframe_t {
   pub fn new_empty() -> CCallRefRet<Self> {
     leak_value(Self { inner: DataFrame::empty() })
+  }
+
+  pub fn from_cols(cols: TypedVector<TypedValue<polars_column_t>>) -> CCallResult<Self> {
+    let cols = unsafe { cols.managed_data() }
+      .as_slice()
+      .into_iter()
+      .map(|c| c.load(std::sync::atomic::Ordering::Relaxed).map(|c| {
+        let val = unsafe { c.as_managed() };
+        unsafe { val.track_shared().unwrap().inner.clone() }
+      }))
+      .collect::<Option<Vec<_>>>()
+      .ok_or_else(|| JlrsError::exception("Could not load columns"))?;
+    Ok(leak_value(Self { inner: DataFrame::new(cols).unwrap() }))
   }
 
   pub fn height(&self) -> usize {

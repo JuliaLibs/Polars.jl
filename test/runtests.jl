@@ -12,8 +12,17 @@ end
 @testset "DataFrame tests" begin
   df = Polars.polars_dataframe_t()
   @test Polars.height(df) == 0
+  @test size(df) == 0
   Polars.write_parquet(df, "test.parquet")
   df2 = Polars.read_parquet("test.parquet")
   @test Polars.height(df2) == 0
   show(df2)
+end
+
+@testset "Column tests" begin
+  col = Polars.polars_column_t("mycol")
+  @test size(col) == 0
+  df = Polars.polars_dataframe_t([col])
+  @test Polars.height(df) == 0
+  show(df)
 end
