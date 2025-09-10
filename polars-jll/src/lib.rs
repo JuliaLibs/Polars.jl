@@ -45,6 +45,7 @@ julia_module!{
   in polars_column_t fn len(&self) -> usize as polars_column_len;
   in polars_column_t fn dtype(&self) -> CCallRefRet<polars_value_type_t> as polars_column_dtype;
   in polars_column_t fn name(&self) -> StringRet as polars_column_name;
+  in polars_column_t fn null_count(&self) -> usize as polars_column_null_count;
 
   struct polars_value_type_t;
   in polars_value_type_t fn display(&self) -> StringRet as polars_value_type_display;

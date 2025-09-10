@@ -20,6 +20,7 @@ end
   col = Polars.Column("mycol")
   @test Polars.name(col) == "mycol"
   @test size(col) == 0
+  @test Polars.null_count(col) == 0
   dtype = Polars.dtype(col)
   println("Column dtype: ", dtype)
   df = Polars.DataFrame([col])

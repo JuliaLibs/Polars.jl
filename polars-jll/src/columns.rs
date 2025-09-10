@@ -20,6 +20,10 @@ impl polars_column_t {
     self.inner.len()
   }
 
+  pub fn null_count(&self) -> usize {
+    self.inner.null_count()
+  }
+
   pub fn dtype(&self) -> CCallRefRet<polars_value_type_t> {
     leak_value(polars_value_type_t { inner: self.inner.dtype().clone() })
   }

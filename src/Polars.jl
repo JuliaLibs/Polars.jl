@@ -35,6 +35,7 @@ Base.unsafe_convert(::Type{polars_column_t}, col::Column) = col.inner
 Base.size(col::Column) = FFI.polars_column_len(col.inner)
 dtype(col::Column)::DataType = FFI.polars_column_dtype(col.inner)
 name(col::Column)::String = FFI.polars_column_name(col.inner)
+null_count(col::Column)::UInt = FFI.polars_column_null_count(col.inner)
 
 Base.convert(::Type{DataType}, dtype::polars_value_type_t) = DataType(dtype)
 Base.unsafe_convert(::Type{polars_value_type_t}, dtype::DataType) = dtype.inner
