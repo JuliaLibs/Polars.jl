@@ -1,5 +1,5 @@
 # rm -rf ~/.julia/compiled/v1.11/Polars && cargo build && julia --project -e 'using Test; include("test/runtests.jl")'
-using Polars, Test
+using Polars, Test, JlrsCore
 
 @testset "Basic tests" begin
   println("Polars version: ", Polars.version())
@@ -18,10 +18,14 @@ end
 
 @testset "Column tests" begin
   col = Polars.Column("mycol")
+  @test Polars.name(col) == "mycol"
   @test size(col) == 0
   dtype = Polars.dtype(col)
   println("Column dtype: ", dtype)
   df = Polars.DataFrame([col])
   @test Polars.height(df) == 0
   show(df)
+  col = Polars.get_column(df, "mycol")
+  @test Polars.name(col) == "mycol"
+  @test_throws JlrsCore.JlrsError Polars.get_column(df, "nonexistent")
 end

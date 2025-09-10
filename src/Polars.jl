@@ -27,12 +27,14 @@ Base.size(df::DataFrame) = FFI.polars_dataframe_height(df.inner)
 height(df::DataFrame)::UInt = FFI.polars_dataframe_height(df.inner)
 read_parquet(path::String)::DataFrame = FFI.polars_dataframe_read_parquet(path)
 write_parquet(df::DataFrame, path::String)::Nothing = FFI.polars_dataframe_write_parquet(df.inner, path)
+get_column(df::DataFrame, name::String)::Column = FFI.polars_dataframe_get_column(df.inner, name)
 
 Column(name::String)::Column = FFI.polars_column_new_empty(name)
-dtype(col::Column)::DataType = FFI.polars_column_dtype(col.inner)
 Base.convert(::Type{Column}, col::polars_column_t) = Column(col)
 Base.unsafe_convert(::Type{polars_column_t}, col::Column) = col.inner
 Base.size(col::Column) = FFI.polars_column_len(col.inner)
+dtype(col::Column)::DataType = FFI.polars_column_dtype(col.inner)
+name(col::Column)::String = FFI.polars_column_name(col.inner)
 
 Base.convert(::Type{DataType}, dtype::polars_value_type_t) = DataType(dtype)
 Base.unsafe_convert(::Type{polars_value_type_t}, dtype::DataType) = dtype.inner

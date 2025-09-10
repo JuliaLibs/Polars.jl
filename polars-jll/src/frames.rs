@@ -48,6 +48,12 @@ impl polars_dataframe_t {
       Err(_) => panic!("Could not create weak handle to Julia."),
     }
   }
+
+  pub fn get_column(&self, name: JuliaString) -> CCallResult<polars_column_t> {
+    let name = name.as_str()?;
+    let col = self.inner.column(name).map_err(JlrsError::other)?;
+    Ok(leak_value(polars_column_t { inner: col.clone() }))
+  }
 }
 
 // Re-exported for use by the julia module

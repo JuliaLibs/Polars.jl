@@ -38,11 +38,13 @@ julia_module!{
   in polars_dataframe_t fn read_parquet(path: JuliaString) -> CCallResult<polars_dataframe_t> as polars_dataframe_read_parquet;
   in polars_dataframe_t fn write_parquet(&mut self, path: JuliaString) -> JlrsResult<()> as polars_dataframe_write_parquet;
   in polars_dataframe_t fn show(&self, io: CCallRef<IO>) -> JlrsResult<()> as polars_dataframe_show;
+  in polars_dataframe_t fn get_column(&self, name: JuliaString) -> CCallResult<polars_column_t> as polars_dataframe_get_column;
 
   struct polars_column_t;
   in polars_column_t fn new_empty(name: JuliaString) -> CCallResult<polars_column_t> as polars_column_new_empty;
   in polars_column_t fn len(&self) -> usize as polars_column_len;
   in polars_column_t fn dtype(&self) -> CCallRefRet<polars_value_type_t> as polars_column_dtype;
+  in polars_column_t fn name(&self) -> StringRet as polars_column_name;
 
   struct polars_value_type_t;
   in polars_value_type_t fn display(&self) -> StringRet as polars_value_type_display;

@@ -1,7 +1,7 @@
 use polars::prelude::*;
-use jlrs::{data::managed::ccall_ref::CCallRefRet, prelude::*};
+use jlrs::{data::managed::{ccall_ref::CCallRefRet, string::StringRet}, prelude::*};
 
-use crate::{polars_value_type_t, utils::leak_value, CCallResult};
+use crate::{polars_value_type_t, utils::{leak_string, leak_value}, CCallResult};
 
 
 #[derive(Debug, OpaqueType)]
@@ -22,5 +22,9 @@ impl polars_column_t {
 
   pub fn dtype(&self) -> CCallRefRet<polars_value_type_t> {
     leak_value(polars_value_type_t { inner: self.inner.dtype().clone() })
+  }
+
+  pub fn name(&self) -> StringRet {
+    leak_string(self.inner.name().as_str())
   }
 }
