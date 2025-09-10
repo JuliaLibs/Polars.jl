@@ -11,8 +11,10 @@ use jlrs::{
 };
 
 pub mod errors;
+pub mod frames;
 
 pub use errors::polars_error_t;
+pub use frames::polars_dataframe_t;
 
 julia_module!{
   become julia_module_polars_init_fn;
@@ -22,6 +24,10 @@ julia_module!{
   struct polars_error_t;
   in polars_error_t fn new(msg: JuliaString) -> CCallRefRet<polars_error_t> as polars_error_t;
   in polars_error_t fn message(&self) -> StringRet as polars_error_message;
+
+  struct polars_dataframe_t;
+  in polars_dataframe_t fn new_empty() -> CCallRefRet<polars_dataframe_t> as polars_dataframe_t;
+  in polars_dataframe_t fn height(&self) -> usize as polars_dataframe_height;
 }
 
 pub fn polars_version() -> StringRet {
