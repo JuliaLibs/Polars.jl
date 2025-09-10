@@ -1,7 +1,7 @@
 use polars::prelude::*;
-use jlrs::{data::managed::ccall_ref::CCallRefRet, error::JlrsError, prelude::*};
+use jlrs::{data::{managed::ccall_ref::{CCallRef, CCallRefRet}, types::abstract_type::IO}, error::JlrsError, prelude::*, weak_handle};
 
-use crate::{leak_value, CCallResult};
+use crate::{leak_value, unsafe_write, CCallResult};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -30,6 +30,16 @@ impl polars_dataframe_t {
     let file = std::fs::File::create(path).map_err(JlrsError::other)?;
     ParquetWriter::new(file).finish(&mut self.inner).map_err(JlrsError::other)?;
     Ok(())
+  }
+
+  pub fn show(&self, io: CCallRef<IO>) -> JlrsResult<()> {
+    match weak_handle!() {
+      Ok(handle) => {
+        let s = format!("{}\n", self.inner);
+        unsafe_write(handle, io, s.as_bytes())
+      },
+      Err(_) => panic!("Could not create weak handle to Julia."),
+    }
   }
 }
 

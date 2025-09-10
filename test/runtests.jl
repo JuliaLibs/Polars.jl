@@ -15,4 +15,5 @@ end
   Polars.write_parquet(df, "test.parquet")
   df2 = Polars.read_parquet("test.parquet")
   @test Polars.height(df2) == 0
+  show(df2)
 end
