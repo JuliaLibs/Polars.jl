@@ -1,4 +1,4 @@
-use jlrs::{data::managed::{string::StringRet, symbol::SymbolRet}, prelude::*};
+use jlrs::{data::{managed::{named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, prelude::*, weak_handle};
 
 use crate::utils::{leak_string, leak_symbol};
 
@@ -17,6 +17,90 @@ impl polars_value_type_t {
     leak_symbol(as_str(&self.inner))
   }
 
+  // this is actually JlrsResult<NamedTupleRet>
+  pub fn kwargs(&self) -> JlrsResult<ValueRet> {
+    use jlrs::convert::into_julia::IntoJulia;
+    match weak_handle!() {
+      Ok(handle) => {
+        let mut keys = Vec::<Symbol>::new();
+        let mut vals = Vec::<Value>::new();
+        fn jl_value<'s, 'd, T: IntoJulia + ConstructType>(handle: impl Target<'s>, v: T) -> Value<'s, 'd> {
+          unsafe { TypedValue::new(&handle, v).as_value() }
+        }
+        let sym = |s: &str| Symbol::new(&handle, s);
+        let jl_none = || { Value::nothing(&handle) };
+        let jl_str = |s: &str| unsafe { JuliaString::new(&handle, s).as_value() };
+        let jl_sym = |s: &str| { Symbol::new(&handle, s).as_value() };
+        let jl_dtype = |dt: &polars::prelude::DataType| unsafe {
+          TypedValue::new(&handle, polars_value_type_t { inner: dt.clone() }).as_value()
+        };
+        match &self.inner {
+          polars::prelude::DataType::Null => {},
+          polars::prelude::DataType::Boolean => {},
+          polars::prelude::DataType::String => {},
+          polars::prelude::DataType::Binary => {},
+          polars::prelude::DataType::BinaryOffset => {},
+          polars::prelude::DataType::Int8 => {},
+          polars::prelude::DataType::Int16 => {},
+          polars::prelude::DataType::Int32 => {},
+          polars::prelude::DataType::Int64 => {},
+          polars::prelude::DataType::Int128 => {},
+          polars::prelude::DataType::UInt8 => {},
+          polars::prelude::DataType::UInt16 => {},
+          polars::prelude::DataType::UInt32 => {},
+          polars::prelude::DataType::UInt64 => {},
+          polars::prelude::DataType::Float32 => {},
+          polars::prelude::DataType::Float64 => {},
+          polars::prelude::DataType::Date => {},
+          polars::prelude::DataType::Time => {},
+          polars::prelude::DataType::Datetime(tu, tz) => {
+            keys.push(sym("time_unit"));
+            vals.push(jl_sym(time_unit_as_str(tu)));
+            keys.push(sym("time_zone"));
+            if let Some(tz) = tz {
+              vals.push(jl_str(tz.as_str()));
+            } else {
+              vals.push(jl_none());
+            }
+          },
+          polars::prelude::DataType::Duration(tu) => {
+            keys.push(sym("time_unit"));
+            vals.push(jl_sym(time_unit_as_str(tu)));
+          },
+          polars::prelude::DataType::List(inner) => {
+            keys.push(sym("inner"));
+            vals.push(jl_dtype(inner));
+          },
+          #[cfg(feature = "dtype-array")]
+          polars::prelude::DataType::Array(inner, size) => {
+            keys.push(sym("inner"));
+            vals.push(jl_dtype(inner));
+            keys.push(sym("size"));
+            vals.push(jl_value(&handle, *size));
+          },
+          #[cfg(feature = "dtype-decimal")]
+          polars::prelude::DataType::Decimal(precision, scale) => {
+            keys.push(sym("precision"));
+            if let Some(precision) = precision {
+              vals.push(jl_value(&handle, *precision));
+            } else {
+              vals.push(jl_none());
+            }
+            keys.push(sym("scale"));
+            if let Some(scale) = scale {
+              vals.push(jl_value(&handle, *scale));
+            } else {
+              vals.push(jl_none());
+            }
+          }
+          _ => unimplemented!(),
+        }
+        let result = NamedTuple::new(&handle, &keys, &vals).map_err(|e| JlrsError::exception(format!("{:?}", e)))?;
+        Ok(unsafe { result.as_value().leak() })
+      },
+      Err(_) => panic!("Could not create weak handle to Julia."),
+    }
+  }
 }
 
 pub fn as_str(dtype: &polars::prelude::DataType) -> &'static str {
@@ -54,4 +138,12 @@ pub fn as_str(dtype: &polars::prelude::DataType) -> &'static str {
     polars::prelude::DataType::Struct(_) => "Struct",
     polars::prelude::DataType::Unknown(_) => "Unknown",
     }
+}
+
+pub fn time_unit_as_str(tu: &polars::prelude::TimeUnit) -> &'static str {
+  match tu {
+    polars::prelude::TimeUnit::Nanoseconds => "Nanoseconds",
+    polars::prelude::TimeUnit::Microseconds => "Microseconds",
+    polars::prelude::TimeUnit::Milliseconds => "Milliseconds",
+  }
 }

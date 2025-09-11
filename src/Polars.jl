@@ -1,17 +1,19 @@
 module Polars
 
 include("ffi.jl")
+include("datatype.jl")
 
 version()::String = FFI.polars_version()
 
-import .FFI: polars_error_t, polars_column_t, polars_value_type_t
+import .DataTypes: DataType
+import .FFI: polars_error_t, polars_value_type_t
 
 struct DataFrame
   inner::FFI.polars_dataframe_t
 end
 
 struct Column
-  inner::polars_column_t
+  inner::FFI.polars_column_t
 end
 
 DataFrame()::DataFrame = FFI.polars_dataframe_new_empty()
@@ -26,14 +28,18 @@ write_parquet(df::DataFrame, path::String)::Nothing = FFI.polars_dataframe_write
 get_column(df::DataFrame, name::String)::Column = FFI.polars_dataframe_get_column(df.inner, name)
 
 Column(name::String)::Column = FFI.polars_column_new_empty(name)
-Base.convert(::Type{Column}, col::polars_column_t) = Column(col)
-Base.unsafe_convert(::Type{polars_column_t}, col::Column) = col.inner
+Base.convert(::Type{Column}, col::FFI.polars_column_t) = Column(col)
+Base.unsafe_convert(::Type{FFI.polars_column_t}, col::Column) = col.inner
 Base.size(col::Column) = FFI.polars_column_len(col.inner)
-dtype(col::Column)::polars_value_type_t = FFI.polars_column_dtype(col.inner)
+dtype(col::Column)::DataType = FFI.polars_column_dtype(col.inner)
 name(col::Column)::String = FFI.polars_column_name(col.inner)
 null_count(col::Column)::UInt = FFI.polars_column_null_count(col.inner)
 
-Base.show(dtype::polars_value_type_t) = FFI.polars_value_type_display(dtype)
-symbol(dtype::polars_value_type_t)::Symbol = FFI.polars_value_type_symbol(dtype)
+function Base.convert(::Type{DataType}, dtype::FFI.polars_value_type_t)::DataType
+  sym = FFI.polars_value_type_symbol(dtype)
+  kwargs = FFI.polars_value_type_kwargs(dtype)
+  println("Converting dtype: ", sym, " with kwargs: ", kwargs)
+  return DataTypes.DataType(sym; kwargs...)
+end
 
 end # module Polars

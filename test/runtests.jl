@@ -29,14 +29,14 @@ end
   col = Polars.get_column(df, "mycol")
   @test Polars.name(col) == "mycol"
   dtype = Polars.dtype(col)
-  println("Column dtype: ", Polars.symbol(dtype))
+  println("Column dtype: ", dtype)
   @test_throws JlrsCore.JlrsError Polars.get_column(df, "nonexistent")
 end
 
 @testset "DataType tests" begin
   col = Polars.Column("mycol")
   dtype = Polars.dtype(col)
-  println("Column dtype: ", Polars.symbol(dtype))
+  println("Column dtype: ", dtype)
   # @test typeof(dtype) == Polars.DataType
-  println(Polars.DataTypes.Decimal{10, 2})
+  println(Polars.DataTypes.Decimal{10, 2}())
 end
