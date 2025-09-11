@@ -10,10 +10,20 @@ end
   df = Polars.DataFrame()
   @test Polars.height(df) == 0
   @test size(df) == 0
-  Polars.write_parquet(df, "test.parquet")
-  df2 = Polars.read_parquet("test.parquet")
+  Polars.write_parquet(df, "test_empty.parquet")
+  df2 = Polars.read_parquet("test_empty.parquet")
   @test Polars.height(df2) == 0
   show(df2)
+end
+
+@testset "DataFrame with data tests" begin
+  df = Polars.read_parquet("test.parquet")
+  @test Polars.height(df) == 3
+  show(df)
+  col = df["decimal"]
+  @test Polars.name(col) == "decimal"
+  @test Polars.size(col) == 3
+  println(Polars.dtype(col))
 end
 
 @testset "Column tests" begin

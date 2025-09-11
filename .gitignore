@@ -5,3 +5,5 @@ Manifest.toml
 /Cargo.lock
 /target
 *.parquet
+
+uv.lock

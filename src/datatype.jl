@@ -39,8 +39,8 @@ function DataType(sym::Symbol; kwargs...)::DataType
     return Float64()
   elseif sym === :Decimal
     # default precision and scale
-    precision = get(kwargs, :precision, 10)
-    scale = get(kwargs, :scale, 2)
+    precision::Base.Int64 = get(kwargs, :precision, 10)
+    scale::Base.Int64 = get(kwargs, :scale, 2)
     return Decimal{precision, scale}()
   else
     throw(ArgumentError("Unsupported data type symbol: $sym"))

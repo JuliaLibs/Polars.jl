@@ -22,6 +22,7 @@ Base.convert(::Type{DataFrame}, df::FFI.polars_dataframe_t) = DataFrame(df)
 Base.unsafe_convert(::Type{FFI.polars_dataframe_t}, df::DataFrame) = df.inner
 Base.show(io::IO, df::DataFrame) = FFI.polars_dataframe_show(df.inner, io)
 Base.size(df::DataFrame) = FFI.polars_dataframe_height(df.inner)
+Base.getindex(df::DataFrame, name::String)::Column = FFI.polars_dataframe_get_column(df.inner, name)
 height(df::DataFrame)::UInt = FFI.polars_dataframe_height(df.inner)
 read_parquet(path::String)::DataFrame = FFI.polars_dataframe_read_parquet(path)
 write_parquet(df::DataFrame, path::String)::Nothing = FFI.polars_dataframe_write_parquet(df.inner, path)
