@@ -1,7 +1,7 @@
 use polars::prelude::*;
-use jlrs::{data::{managed::ccall_ref::{CCallRef, CCallRefRet}, types::abstract_type::IO}, error::JlrsError, prelude::*, weak_handle};
+use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, value::typed::TypedValue}, types::abstract_type::IO}, error::JlrsError, prelude::*, weak_handle};
 
-use crate::{polars_column_t, utils::{leak_value, IOWrapper, TypedVec, TypedVecExt}, CCallResult};
+use crate::{polars_column_t, utils::{leak_value, IOWrapper, TypedVecExt}, CCallResult, ColumnValue};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -9,12 +9,16 @@ pub struct polars_dataframe_t {
   pub(crate) inner: DataFrame,
 }
 
+pub type DataFrameRet = CCallRefRet<polars_dataframe_t>;
+pub type DataFrameRef<'data> = CCallRef<'data, polars_dataframe_t>;
+pub type DataFrameValue<'scope, 'data> = TypedValue<'scope, 'data, polars_dataframe_t>;
+
 impl polars_dataframe_t {
-  pub fn new_empty() -> CCallRefRet<Self> {
+  pub fn new_empty() -> DataFrameRet {
     leak_value(Self { inner: DataFrame::empty() })
   }
 
-  pub fn from_cols(cols: TypedVec<polars_column_t>) -> CCallResult<Self> {
+  pub fn from_cols(cols: TypedVector<ColumnValue>) -> JlrsResult<DataFrameRet> {
     let cols = cols.extract_box(|c| c.inner.clone())?;
     Ok(leak_value(Self { inner: DataFrame::new(cols).unwrap() }))
   }
@@ -23,7 +27,7 @@ impl polars_dataframe_t {
     self.inner.height()
   }
 
-  pub fn read_parquet(path: JuliaString) -> CCallResult<Self> {
+  pub fn read_parquet(path: JuliaString) -> JlrsResult<DataFrameRet> {
     let path = path.as_str()?;
     let file = std::fs::File::open(path).map_err(JlrsError::other)?;
     let df = ParquetReader::new(file).finish().map_err(JlrsError::other)?;
@@ -55,6 +59,3 @@ impl polars_dataframe_t {
     Ok(leak_value(polars_column_t { inner: col.clone() }))
   }
 }
-
-// Re-exported for use by the julia module
-pub type DataFrameRef = *mut DataFrame;
