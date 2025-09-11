@@ -9,4 +9,20 @@ crate-type = ["cdylib"]
 
 [dependencies]
 jlrs = { git = "https://github.com/Taaitaaiger/jlrs", features = ["jlrs-derive", "ccall"] }
-polars = { version = "0.50.0", features = ["lazy", "parquet", "dtype-array", "dtype-datetime", "dtype-duration", "dtype-struct", "dtype-categorical"] }
+polars = { version = "0.50.0", features = ["lazy", "parquet"] }
+
+[features]
+default = ["dtype-array", "dtype-decimal", "dtype-datetime", "dtype-duration", "dtype-struct", "dtype-categorical"]
+dtype-array = ["polars/dtype-array"]
+dtype-categorical = ["polars/dtype-categorical"]
+dtype-date = ["polars/dtype-date"]
+dtype-datetime = ["polars/dtype-datetime"]
+dtype-decimal = ["polars/dtype-decimal"]
+dtype-duration = ["polars/dtype-duration"]
+dtype-i128 = ["polars/dtype-i128"]
+dtype-i16 = ["polars/dtype-i16"]
+dtype-i8 = ["polars/dtype-i8"]
+dtype-struct = ["polars/dtype-struct"]
+dtype-time = ["polars/dtype-time"]
+dtype-u8 = ["polars/dtype-u8"]
+dtype-u16 = ["polars/dtype-u16"]

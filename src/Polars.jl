@@ -14,10 +14,6 @@ struct Column
   inner::polars_column_t
 end
 
-struct DataType
-  inner::polars_value_type_t
-end
-
 DataFrame()::DataFrame = FFI.polars_dataframe_new_empty()
 DataFrame(cols::Vector{Column})::DataFrame = FFI.polars_dataframe_from_cols([col.inner for col in cols])
 Base.convert(::Type{DataFrame}, df::FFI.polars_dataframe_t) = DataFrame(df)
@@ -33,12 +29,11 @@ Column(name::String)::Column = FFI.polars_column_new_empty(name)
 Base.convert(::Type{Column}, col::polars_column_t) = Column(col)
 Base.unsafe_convert(::Type{polars_column_t}, col::Column) = col.inner
 Base.size(col::Column) = FFI.polars_column_len(col.inner)
-dtype(col::Column)::DataType = FFI.polars_column_dtype(col.inner)
+dtype(col::Column)::polars_value_type_t = FFI.polars_column_dtype(col.inner)
 name(col::Column)::String = FFI.polars_column_name(col.inner)
 null_count(col::Column)::UInt = FFI.polars_column_null_count(col.inner)
 
-Base.convert(::Type{DataType}, dtype::polars_value_type_t) = DataType(dtype)
-Base.unsafe_convert(::Type{polars_value_type_t}, dtype::DataType) = dtype.inner
-Base.show(dtype::DataType) = FFI.polars_value_type_display(dtype.inner)
+Base.show(dtype::polars_value_type_t) = FFI.polars_value_type_display(dtype)
+symbol(dtype::polars_value_type_t)::Symbol = FFI.polars_value_type_symbol(dtype)
 
 end # module Polars

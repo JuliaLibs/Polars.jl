@@ -1,5 +1,14 @@
-use jlrs::{convert::into_julia::IntoJulia, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, string::StringRet, value::typed::TypedValue}, types::{abstract_type::IO, construct_type::ConstructType}}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
+use jlrs::{convert::into_julia::IntoJulia, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, string::StringRet, symbol::SymbolRet, value::typed::TypedValue}, types::{abstract_type::IO, construct_type::ConstructType}}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 
+
+pub(crate) fn leak_symbol(s: &'static str) -> SymbolRet {
+  match weak_handle!() {
+    Ok(handle) => {
+      Symbol::new(&handle, s).leak()
+    },
+    Err(_) => panic!("Could not create weak handle to Julia."),
+  }
+}
 
 pub(crate) fn leak_string<S: AsRef<str>>(s: S) -> StringRet {
   match weak_handle!() {
