@@ -23,7 +23,8 @@ end
   col = df["decimal"]
   @test Polars.name(col) == "decimal"
   @test Polars.size(col) == 3
-  println(Polars.dtype(col))
+  dtype = Polars.dtype(col)
+  @test dtype isa Polars.DataTypes.Decimal{9, 3}
 end
 
 @testset "Column tests" begin

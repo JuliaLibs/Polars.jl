@@ -1,5 +1,7 @@
 module DataTypes
 
+import ..FFI: polars_value_type_t
+
 abstract type DataType end
 struct Boolean <: DataType end
 struct Int8 <: DataType end
@@ -13,6 +15,15 @@ struct UInt64 <: DataType end
 struct Float32 <: DataType end
 struct Float64 <: DataType end
 struct Decimal{P, S} <: DataType end
+struct Unknown <: DataType
+  tag::Symbol
+  inner::polars_value_type_t
+end
+
+Decimal(P, S)::DataType = Decimal(Int(P), Int(S))
+Decimal(P::Int, S::Int)::DataType = Decimal{P, S}()
+Base.precision(_::Decimal{P, S}) where {P, S} = P
+scale(_::Decimal{P, S}) where {P, S} = S
 
 function DataType(sym::Symbol; kwargs...)::DataType
   if sym === :Bool
@@ -39,9 +50,9 @@ function DataType(sym::Symbol; kwargs...)::DataType
     return Float64()
   elseif sym === :Decimal
     # default precision and scale
-    precision::Base.Int64 = get(kwargs, :precision, 10)
-    scale::Base.Int64 = get(kwargs, :scale, 2)
-    return Decimal{precision, scale}()
+    precision = get(kwargs, :precision, 10)
+    scale = get(kwargs, :scale, 2)
+    return Decimal(precision, scale)
   else
     throw(ArgumentError("Unsupported data type symbol: $sym"))
   end

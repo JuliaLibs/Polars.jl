@@ -40,7 +40,15 @@ function Base.convert(::Type{DataType}, dtype::FFI.polars_value_type_t)::DataTyp
   sym = FFI.polars_value_type_symbol(dtype)
   kwargs = FFI.polars_value_type_kwargs(dtype)
   println("Converting dtype: ", sym, " with kwargs: ", kwargs)
-  return DataTypes.DataType(sym; kwargs...)
+  try
+    return DataTypes.DataType(sym; kwargs...)
+  catch e
+    if e isa ArgumentError
+      println("Error converting dtype: ", e, sym, kwargs)
+      return DataTypes.Unknown(sym, dtype)
+    end
+    rethrow(e)
+  end
 end
 
 end # module Polars

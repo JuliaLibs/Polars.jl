@@ -93,7 +93,10 @@ impl polars_value_type_t {
               vals.push(jl_none());
             }
           }
-          _ => unimplemented!(),
+          raw => {
+            keys.push(sym("raw"));
+            vals.push(jl_dtype(raw));
+          }
         }
         let result = NamedTuple::new(&handle, &keys, &vals).map_err(|e| JlrsError::exception(format!("{:?}", e)))?;
         Ok(unsafe { result.as_value().leak() })
