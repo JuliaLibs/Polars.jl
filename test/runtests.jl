@@ -23,7 +23,7 @@ end
   function test_col(name, expected_dtype)
     col = df[name]
     @test Polars.name(col) == name
-    @test Polars.size(col) == 3
+    @test length(col) == 3
     dtype = Polars.dtype(col)
     @test typeof(dtype) == expected_dtype
   end
@@ -51,7 +51,7 @@ end
 @testset "Column tests" begin
   col = Polars.Column("mycol")
   @test Polars.name(col) == "mycol"
-  @test size(col) == 0
+  @test length(col) == 0
   @test Polars.null_count(col) == 0
   dtype = Polars.dtype(col)
   println("Column dtype: ", dtype)
@@ -76,16 +76,16 @@ end
 @testset "AnyValue tests" begin
   df = Polars.read_parquet("test.parquet")
   @test Polars.height(df) == 3
-  @test getindex.(Ref(df["col_null"]), 1:3) == [nothing, nothing, nothing]
-  @test getindex.(Ref(df["col_bool"]), 1:3) == [true, false, true]
-  @test getindex.(Ref(df["col_int32"]), 1:3) == [1, 2, 3]
-  @test getindex.(Ref(df["col_float64"]), 1:3) == [1.0, 2.0, 3.0]
-  # @test getindex.(Ref(df["col_decimal"]), 1:3) == [Decimal(1, 0), Decimal(2, 0), Decimal(3, 0)]
-  @test getindex.(Ref(df["col_string"]), 1:3) == ["a", "b", "c"]
-  @test getindex.(Ref(df["col_datetime"]), 1:3) == [DateTime(2023, 1, 1), DateTime(2023, 1, 2), DateTime(2023, 1, 3)]
-  @test getindex.(Ref(df["col_date"]), 1:3) == [Date(2023, 1, 1), Date(2023, 1, 2), Date(2023, 1, 3)]
-  @test getindex.(Ref(df["col_time"]), 1:3) == [Time(12, 0), Time(13, 0), Time(14, 0)]
-  @test getindex.(Ref(df["col_duration"]), 1:3) == [Microsecond(1000), Microsecond(2000), Microsecond(3000)]
-  col = df["col_null"]
-  @test_throws JlrsCore.JlrsError col[4]
+  @test df["col_null", 1:3] == [nothing, nothing, nothing]
+  @test df["col_bool", 1:3] == [true, false, true]
+  @test df[["col_int8", "col_int16", "col_int32", "col_int64"], 1:3] == [[1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3]]
+  @test df[["col_uint8", "col_uint16", "col_uint32", "col_uint64"], 1:3] == [[1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3]]
+  @test df[["col_float32", "col_float64"], 1:3] == [[1.0, 2.0, 3.0], [1.0, 2.0, 3.0]]
+  # @test df["col_decimal", 1:3] == [Decimal(1, 0), Decimal(2, 0), Decimal(3, 0)]
+  @test df["col_string", 1:3] == ["a", "b", "c"]
+  @test df["col_datetime", 1:3] == [DateTime(2023, 1, 1), DateTime(2023, 1, 2), DateTime(2023, 1, 3)]
+  @test df["col_date", 1:3] == [Date(2023, 1, 1), Date(2023, 1, 2), Date(2023, 1, 3)]
+  @test df["col_time", 1:3] == [Time(12, 0), Time(13, 0), Time(14, 0)]
+  @test df["col_duration", 1:3] == [Microsecond(1000), Microsecond(2000), Microsecond(3000)]
+  @test_throws JlrsCore.JlrsError df["col_null", 4]
 end
