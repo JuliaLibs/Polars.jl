@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 
-use crate::{polars_value_type_t, utils::leak_value, ValueTypeRet};
+use crate::{polars_value_type_t, utils::leak_value, value_types::time_unit_as_str, ValueTypeRet};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -27,23 +27,11 @@ impl polars_value_t {
           unsafe { TypedValue::new(&handle, v).as_value() }.leak()
         }
         let jl_str = |s: &str| unsafe { JuliaString::new(&handle, s).as_value() }.leak();
-        let jl_datetime = |s: i64, ns: u64, tz: Option<&str>| {
-          let s = unsafe { TypedValue::new(&handle, s).as_value() };
-          let ns = unsafe { TypedValue::new(&handle, ns).as_value() };
-          let tz = match tz {
-            Some(tz) => unsafe { JuliaString::new(&handle, tz).as_value() },
-            None => Value::nothing(&handle),
-          };
-          let _jl_datetime = inline_static_ref!(JL_DATETIME_FUNCTION, Value, "Polars.FFI._jl_datetime", handle);
-          match unsafe { _jl_datetime.call(&handle, [s, ns, tz]) } {
-            Ok(v) => Ok(v.leak()),
-            Err(e) => Err(JlrsError::exception(format!("Error calling _jl_datetime: {:?}", e))),
-          }
-        };
         match &self.inner {
           AnyValue::Null => Ok(Value::nothing(&handle).leak()),
           AnyValue::Boolean(v) => Ok(jl_value(&handle, *v)),
           AnyValue::String(v) => Ok(jl_str(v)),
+          AnyValue::StringOwned(v) => Ok(jl_str(v)),
           AnyValue::UInt8(v) => Ok(jl_value(&handle, *v)),
           AnyValue::UInt16(v) => Ok(jl_value(&handle, *v)),
           AnyValue::UInt32(v) => Ok(jl_value(&handle, *v)),
@@ -54,27 +42,19 @@ impl polars_value_t {
           AnyValue::Int64(v) => Ok(jl_value(&handle, *v)),
           AnyValue::Float32(v) => Ok(jl_value(&handle, *v)),
           AnyValue::Float64(v) => Ok(jl_value(&handle, *v)),
-          AnyValue::Date(v) => Ok(jl_value(&handle, *v)),
+          AnyValue::Date(v) => Ok(jl_date(&handle, *v)?),
           AnyValue::Datetime(v, unit, tz) => {
-            let (s, ns) = match unit {
-              polars::prelude::TimeUnit::Milliseconds => (*v / 1_000, (*v % 1_000) * 1_000_000),
-              polars::prelude::TimeUnit::Microseconds => (*v / 1_000_000, (*v % 1_000_000) * 1_000),
-              polars::prelude::TimeUnit::Nanoseconds => (*v / 1_000_000_000, (*v % 1_000_000_000)),
-            };
             let tz = tz.map(|s| s.as_str());
-            Ok(jl_datetime(s, ns as _, tz)?)
+            let unit = time_unit_as_str(unit);
+            Ok(jl_datetime(&handle, *v, unit, tz)?)
           },
           AnyValue::DatetimeOwned(v, unit, tz) => {
-            let (s, ns) = match unit {
-              polars::prelude::TimeUnit::Milliseconds => (*v / 1_000, (*v % 1_000) * 1_000_000),
-              polars::prelude::TimeUnit::Microseconds => (*v / 1_000_000, (*v % 1_000_000) * 1_000),
-              polars::prelude::TimeUnit::Nanoseconds => (*v / 1_000_000_000, (*v % 1_000_000_000)),
-            };
             let tz = tz.as_ref().map(|s| s.as_str());
-            Ok(jl_datetime(s, ns as _, tz)?)
+            let unit = time_unit_as_str(unit);
+            Ok(jl_datetime(&handle, *v, unit, tz)?)
           },
-          AnyValue::Time(v) => Ok(jl_value(&handle, *v)),
-          AnyValue::Duration(v, _) => Ok(jl_value(&handle, *v)),
+          AnyValue::Time(v) => Ok(jl_time(&handle, *v)?),
+          AnyValue::Duration(v, unit) => Ok(jl_period(&handle, *v, time_unit_as_str(unit))?),
           _ => {
             Err(JlrsError::exception("Cannot convert complex Polars value to Julia value"))?
           },
@@ -82,5 +62,47 @@ impl polars_value_t {
       }
       Err(_) => panic!("Could not create weak handle to Julia."),
     }
+  }
+}
+
+fn jl_datetime<'scope>(handle: impl Target<'scope>, s: i64, unit: &'static str, tz: Option<&str>) -> JlrsResult<ValueRet> {
+  let s = unsafe { TypedValue::new(&handle, s).as_value() };
+  let unit = Symbol::new(&handle, unit).as_value();
+  let tz = match tz {
+    Some(tz) => unsafe { JuliaString::new(&handle, tz).as_value() },
+    None => Value::nothing(&handle),
+  };
+  let _jl_datetime = inline_static_ref!(JL_DATETIME_FUNCTION, Value, "Polars.FFI._jl_datetime", handle);
+  match unsafe { _jl_datetime.call(&handle, [s, unit, tz]) } {
+    Ok(v) => Ok(v.leak()),
+    Err(e) => Err(JlrsError::exception(format!("Error calling _jl_datetime: {:?}", e)))?,
+  }
+}
+
+fn jl_date<'scope>(handle: impl Target<'scope>, d: i32) -> JlrsResult<ValueRet> {
+  let d = unsafe { TypedValue::new(&handle, d).as_value() };
+  let _jl_date = inline_static_ref!(JL_DATE_FUNCTION, Value, "Polars.FFI._jl_date", handle);
+  match unsafe { _jl_date.call(&handle, [d]) } {
+    Ok(v) => Ok(v.leak()),
+    Err(e) => Err(JlrsError::exception(format!("Error calling _jl_date: {:?}", e)))?,
+  }
+}
+
+fn jl_time<'scope>(handle: impl Target<'scope>, t: i64) -> JlrsResult<ValueRet> {
+  let t = unsafe { TypedValue::new(&handle, t).as_value() };
+  let _jl_time = inline_static_ref!(JL_TIME_FUNCTION, Value, "Polars.FFI._jl_time", handle);
+  match unsafe { _jl_time.call(&handle, [t]) } {
+    Ok(v) => Ok(v.leak()),
+    Err(e) => Err(JlrsError::exception(format!("Error calling _jl_time: {:?}", e)))?,
+  }
+}
+
+fn jl_period<'scope>(handle: impl Target<'scope>, d: i64, unit: &'static str) -> JlrsResult<ValueRet> {
+  let d = unsafe { TypedValue::new(&handle, d).as_value() };
+  let unit = Symbol::new(&handle, unit).as_value();
+  let _jl_period = inline_static_ref!(JL_PERIOD_FUNCTION, Value, "Polars.FFI._jl_period", handle);
+  match unsafe { _jl_period.call(&handle, [d, unit]) } {
+    Ok(v) => Ok(v.leak()),
+    Err(e) => Err(JlrsError::exception(format!("Error calling _jl_period: {:?}", e)))?,
   }
 }

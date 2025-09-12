@@ -1,8 +1,16 @@
 module FFI
 
 import Dates
-_jl_datetime(s, ns, time_zone=nothing) = Dates.unix2datetime(s + ns/1000)
-
+_jl_datetime(s, unit, time_zone=nothing) = Dates.DateTime(1970) + _jl_period(s, unit)
+_jl_date(d) = Dates.Date(1970) + Dates.Day(d)
+_jl_time(t) = Dates.Time(0) + Dates.Nanosecond(t)
+_jl_period(t, unit) = if unit === :ms
+  Dates.Millisecond(t)
+elseif unit === :μs
+  Dates.Microsecond(t)
+elseif unit === :ns
+  Dates.Nanosecond(t)
+end
 
 using JlrsCore.Wrap
 # using libpolars_jll

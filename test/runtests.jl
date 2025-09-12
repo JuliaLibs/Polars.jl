@@ -76,15 +76,16 @@ end
 @testset "AnyValue tests" begin
   df = Polars.read_parquet("test.parquet")
   @test Polars.height(df) == 3
-  col = df["col_int32"]
-  @test Polars.size(col) == 3
-  @test Polars.FFI.polars_value_extract(col[1]) == 1
-  @test Polars.FFI.polars_value_extract(col[2]) == 2
-  @test Polars.FFI.polars_value_extract(col[3]) == 3
-  col = df["col_datetime"]
-  @test Polars.size(col) == 3
-  @test Polars.FFI.polars_value_extract(col[1]) == Dates.DateTime(2023, 1, 1)
-  @test Polars.FFI.polars_value_extract(col[2]) == Dates.DateTime(2023, 1, 2)
-  @test Polars.FFI.polars_value_extract(col[3]) == Dates.DateTime(2023, 1, 3)
-  @test_throws JlrsCore.JlrsError Polars.FFI.polars_value_extract(col[4])
+  @test getindex.(Ref(df["col_null"]), 1:3) == [nothing, nothing, nothing]
+  @test getindex.(Ref(df["col_bool"]), 1:3) == [true, false, true]
+  @test getindex.(Ref(df["col_int32"]), 1:3) == [1, 2, 3]
+  @test getindex.(Ref(df["col_float64"]), 1:3) == [1.0, 2.0, 3.0]
+  # @test getindex.(Ref(df["col_decimal"]), 1:3) == [Decimal(1, 0), Decimal(2, 0), Decimal(3, 0)]
+  @test getindex.(Ref(df["col_string"]), 1:3) == ["a", "b", "c"]
+  @test getindex.(Ref(df["col_datetime"]), 1:3) == [DateTime(2023, 1, 1), DateTime(2023, 1, 2), DateTime(2023, 1, 3)]
+  @test getindex.(Ref(df["col_date"]), 1:3) == [Date(2023, 1, 1), Date(2023, 1, 2), Date(2023, 1, 3)]
+  @test getindex.(Ref(df["col_time"]), 1:3) == [Time(12, 0), Time(13, 0), Time(14, 0)]
+  @test getindex.(Ref(df["col_duration"]), 1:3) == [Microsecond(1000), Microsecond(2000), Microsecond(3000)]
+  col = df["col_null"]
+  @test_throws JlrsCore.JlrsError col[4]
 end
