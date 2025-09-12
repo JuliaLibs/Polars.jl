@@ -1,5 +1,9 @@
 module FFI
 
+import Dates
+_jl_datetime(s, ns, time_zone=nothing) = Dates.unix2datetime(s + ns/1000)
+
+
 using JlrsCore.Wrap
 # using libpolars_jll
 # export libpolars_jll

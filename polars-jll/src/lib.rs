@@ -11,6 +11,7 @@ pub mod utils;
 pub mod errors;
 pub mod columns;
 pub mod frames;
+pub mod values;
 pub mod value_types;
 
 pub type CCallResult<T> = JlrsResult<CCallRefRet<T>>;
@@ -19,6 +20,7 @@ pub use errors::polars_error_t;
 pub use frames::{polars_dataframe_t, DataFrameRef, DataFrameRet, DataFrameValue};
 pub use columns::{polars_column_t, ColumnRef, ColumnRet, ColumnValue};
 pub use value_types::{polars_value_type_t, ValueTypeRef, ValueTypeRet, ValueTypeValue};
+pub use values::{polars_value_t, AnyValueRef, AnyValueRet, AnyValueValue};
 
 julia_module!{
   become julia_module_polars_init_fn;
@@ -45,6 +47,7 @@ julia_module!{
   in polars_column_t fn name(&self) -> StringRet as polars_column_name;
   in polars_column_t fn null_count(&self) -> usize as polars_column_null_count;
   in polars_column_t fn is_null(&self, idx: usize) -> bool as polars_column_is_null;
+  in polars_column_t fn get(&self, idx: usize) -> JlrsResult<AnyValueRet> as polars_column_get;
 
   struct polars_value_type_t;
   in polars_value_type_t fn display(&self) -> StringRet as polars_value_type_display;
@@ -52,6 +55,10 @@ julia_module!{
   // this is actually JlrsResult<NamedTupleRet>
   // https://github.com/Taaitaaiger/jlrs/issues/197
   in polars_value_type_t fn kwargs(&self) -> JlrsResult<ValueRet> as polars_value_type_kwargs;
+
+  struct polars_value_t;
+  in polars_value_t fn dtype(&self) -> ValueTypeRet as polars_value_dtype;
+  in polars_value_t fn extract(&self) -> JlrsResult<ValueRet> as polars_value_extract;
 }
 
 pub fn polars_version() -> StringRet {

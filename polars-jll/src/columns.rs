@@ -1,7 +1,7 @@
 use polars::prelude::*;
-use jlrs::{data::managed::{ccall_ref::{CCallRef, CCallRefRet}, string::StringRet, value::typed::TypedValue}, prelude::*};
+use jlrs::{data::managed::{ccall_ref::{CCallRef, CCallRefRet}, string::StringRet, value::typed::TypedValue}, error::JlrsError, prelude::*};
 
-use crate::{polars_value_type_t, utils::{leak_string, leak_value}};
+use crate::{polars_value_type_t, utils::{leak_string, leak_value}, values::{polars_value_t, AnyValueRet}};
 
 
 #[derive(Debug, OpaqueType)]
@@ -39,5 +39,10 @@ impl polars_column_t {
 
   pub fn is_null(&self, idx: usize) -> bool {
     matches!(self.inner.get(idx), Ok(AnyValue::Null))
+  }
+
+  pub fn get(&self, idx: usize) -> JlrsResult<AnyValueRet> {
+    let v = self.inner.get(idx).map_err(JlrsError::other)?;
+    Ok(leak_value(polars_value_t { inner: v.into_static() }))
   }
 }

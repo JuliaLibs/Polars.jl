@@ -1,5 +1,5 @@
 # rm -rf ~/.julia/compiled/v1.11/Polars && cargo build && julia --project -e 'using Test; include("test/runtests.jl")'
-using Polars, Test, JlrsCore
+using Polars, Test, JlrsCore, Dates
 
 @testset "Basic tests" begin
   println("Polars version: ", Polars.version())
@@ -71,4 +71,20 @@ end
   println("Column dtype: ", dtype)
   # @test typeof(dtype) == Polars.DataType
   println(Polars.DataTypes.Decimal{10, 2}())
+end
+
+@testset "AnyValue tests" begin
+  df = Polars.read_parquet("test.parquet")
+  @test Polars.height(df) == 3
+  col = df["col_int32"]
+  @test Polars.size(col) == 3
+  @test Polars.FFI.polars_value_extract(col[1]) == 1
+  @test Polars.FFI.polars_value_extract(col[2]) == 2
+  @test Polars.FFI.polars_value_extract(col[3]) == 3
+  col = df["col_datetime"]
+  @test Polars.size(col) == 3
+  @test Polars.FFI.polars_value_extract(col[1]) == Dates.DateTime(2023, 1, 1)
+  @test Polars.FFI.polars_value_extract(col[2]) == Dates.DateTime(2023, 1, 2)
+  @test Polars.FFI.polars_value_extract(col[3]) == Dates.DateTime(2023, 1, 3)
+  @test_throws JlrsCore.JlrsError Polars.FFI.polars_value_extract(col[4])
 end
