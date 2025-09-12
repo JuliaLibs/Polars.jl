@@ -20,11 +20,32 @@ end
   df = Polars.read_parquet("test.parquet")
   @test Polars.height(df) == 3
   show(df)
-  col = df["decimal"]
-  @test Polars.name(col) == "decimal"
-  @test Polars.size(col) == 3
-  dtype = Polars.dtype(col)
-  @test dtype isa Polars.DataTypes.Decimal{9, 3}
+  function test_col(name, expected_dtype)
+    col = df[name]
+    @test Polars.name(col) == name
+    @test Polars.size(col) == 3
+    dtype = Polars.dtype(col)
+    @test typeof(dtype) == expected_dtype
+  end
+  test_col("col_null", Polars.DataTypes.Null)
+  test_col("col_bool", Polars.DataTypes.Boolean)
+  test_col("col_int8", Polars.DataTypes.Int8)
+  test_col("col_int16", Polars.DataTypes.Int16)
+  test_col("col_int32", Polars.DataTypes.Int32)
+  test_col("col_int64", Polars.DataTypes.Int64)
+  test_col("col_uint8", Polars.DataTypes.UInt8)
+  test_col("col_uint16", Polars.DataTypes.UInt16)
+  test_col("col_uint32", Polars.DataTypes.UInt32)
+  test_col("col_uint64", Polars.DataTypes.UInt64)
+  test_col("col_float32", Polars.DataTypes.Float32)
+  test_col("col_float64", Polars.DataTypes.Float64)
+  test_col("col_decimal", Polars.DataTypes.Decimal{9, 3})
+  test_col("col_datetime", Polars.DataTypes.DateTime{:μs})
+  test_col("col_date", Polars.DataTypes.Date)
+  test_col("col_time", Polars.DataTypes.Time{:μs})
+  test_col("col_duration", Polars.DataTypes.Duration{:μs})
+  test_col("col_list_int32", Polars.DataTypes.List{Polars.DataTypes.Int32})
+  test_col("col_array_float64", Polars.DataTypes.Array{Polars.DataTypes.Float64, 1})
 end
 
 @testset "Column tests" begin

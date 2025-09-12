@@ -145,8 +145,8 @@ pub fn as_str(dtype: &polars::prelude::DataType) -> &'static str {
 
 pub fn time_unit_as_str(tu: &polars::prelude::TimeUnit) -> &'static str {
   match tu {
-    polars::prelude::TimeUnit::Nanoseconds => "Nanoseconds",
-    polars::prelude::TimeUnit::Microseconds => "Microseconds",
-    polars::prelude::TimeUnit::Milliseconds => "Milliseconds",
+    polars::prelude::TimeUnit::Nanoseconds => "ns",
+    polars::prelude::TimeUnit::Microseconds => "μs",
+    polars::prelude::TimeUnit::Milliseconds => "ms",
   }
 }

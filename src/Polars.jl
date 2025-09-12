@@ -43,7 +43,7 @@ function Base.convert(::Type{DataType}, dtype::FFI.polars_value_type_t)::DataTyp
   try
     return DataTypes.DataType(sym; kwargs...)
   catch e
-    if e isa ArgumentError
+    if e isa ArgumentError && occursin("Unimplemented data type symbol", e.msg)
       println("Error converting dtype: ", e, sym, kwargs)
       return DataTypes.Unknown(sym, dtype)
     end

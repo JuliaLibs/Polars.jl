@@ -12,7 +12,21 @@ jlrs = { git = "https://github.com/Taaitaaiger/jlrs", features = ["jlrs-derive",
 polars = { version = "0.50.0", features = ["lazy", "parquet"] }
 
 [features]
-default = ["dtype-array", "dtype-decimal", "dtype-datetime", "dtype-duration", "dtype-struct", "dtype-categorical"]
+default = [
+  "dtype-array",
+  "dtype-categorical",
+  "dtype-date",
+  "dtype-datetime",
+  "dtype-decimal",
+  "dtype-duration",
+  "dtype-i128",
+  "dtype-i16",
+  "dtype-i8",
+  "dtype-struct",
+  "dtype-time",
+  "dtype-u8",
+  "dtype-u16",
+]
 dtype-array = ["polars/dtype-array"]
 dtype-categorical = ["polars/dtype-categorical"]
 dtype-date = ["polars/dtype-date"]
