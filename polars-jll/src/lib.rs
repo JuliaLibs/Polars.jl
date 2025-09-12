@@ -11,14 +11,14 @@ pub mod utils;
 pub mod errors;
 pub mod columns;
 pub mod frames;
-pub mod values;
+pub mod value_types;
 
 pub type CCallResult<T> = JlrsResult<CCallRefRet<T>>;
 
 pub use errors::polars_error_t;
 pub use frames::{polars_dataframe_t, DataFrameRef, DataFrameRet, DataFrameValue};
 pub use columns::{polars_column_t, ColumnRef, ColumnRet, ColumnValue};
-pub use values::polars_value_type_t;
+pub use value_types::{polars_value_type_t, ValueTypeRef, ValueTypeRet, ValueTypeValue};
 
 julia_module!{
   become julia_module_polars_init_fn;
@@ -41,9 +41,10 @@ julia_module!{
   struct polars_column_t;
   in polars_column_t fn new_empty(name: JuliaString) -> JlrsResult<ColumnRet> as polars_column_new_empty;
   in polars_column_t fn len(&self) -> usize as polars_column_len;
-  in polars_column_t fn dtype(&self) -> CCallRefRet<polars_value_type_t> as polars_column_dtype;
+  in polars_column_t fn dtype(&self) -> ValueTypeRet as polars_column_dtype;
   in polars_column_t fn name(&self) -> StringRet as polars_column_name;
   in polars_column_t fn null_count(&self) -> usize as polars_column_null_count;
+  in polars_column_t fn is_null(&self, idx: usize) -> bool as polars_column_is_null;
 
   struct polars_value_type_t;
   in polars_value_type_t fn display(&self) -> StringRet as polars_value_type_display;

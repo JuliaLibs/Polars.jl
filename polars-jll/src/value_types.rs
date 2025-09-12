@@ -1,4 +1,4 @@
-use jlrs::{data::{managed::{named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, prelude::*, weak_handle};
+use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, prelude::*, weak_handle};
 
 use crate::utils::{leak_string, leak_symbol};
 
@@ -7,6 +7,12 @@ use crate::utils::{leak_string, leak_symbol};
 pub struct polars_value_type_t {
   pub inner: polars::prelude::DataType,
 }
+
+// since DataType is used in julia, we use term ValueType instead
+pub type ValueTypeRet = CCallRefRet<polars_value_type_t>;
+pub type ValueTypeRef<'data> = CCallRef<'data, polars_value_type_t>;
+pub type ValueTypeValue<'scope, 'data> = TypedValue<'scope, 'data, polars_value_type_t>;
+
 
 impl polars_value_type_t {
   pub fn display(&self) -> StringRet {

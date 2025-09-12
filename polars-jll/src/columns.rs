@@ -36,4 +36,8 @@ impl polars_column_t {
   pub fn name(&self) -> StringRet {
     leak_string(self.inner.name().as_str())
   }
+
+  pub fn is_null(&self, idx: usize) -> bool {
+    matches!(self.inner.get(idx), Ok(AnyValue::Null))
+  }
 }
