@@ -55,6 +55,6 @@ function Base.convert(::Type{DataType}, dtype::FFI.polars_value_type_t)::DataTyp
     rethrow(e)
   end
 end
-intoraw(dtype::DataType)::FFI.polars_value_type_t = FFI.polars_value_type_from_name_and_kwargs(DataTypes.type(dtype), @show DataTypes.kwargs(dtype))
+intoraw(dtype::DataType)::polars_value_type_t = DataTypes.intoraw(dtype)
 
 end # module Polars

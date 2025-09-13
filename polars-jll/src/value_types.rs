@@ -1,4 +1,4 @@
-use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, prelude::*, weak_handle};
+use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 use polars::prelude::TimeZone;
 
 use crate::utils::{leak_string, leak_symbol, leak_value};
@@ -122,32 +122,41 @@ impl polars_value_type_t {
           let Some(v) = kwargs.get(&handle, "time_unit") else {
             return Err(JlrsError::exception("Missing time_unit"))?;
           };
-          let s = unsafe { v.as_value() }.unbox::<String>()?.map_err(|_| JlrsError::exception(format!("time_unit is not a String")))?;
-          match s.as_str() {
+          let s = unsafe { v.as_managed() }.cast::<Symbol>()?;
+          match s.as_str()? {
             "ns" => Ok(polars::prelude::TimeUnit::Nanoseconds),
             "μs" => Ok(polars::prelude::TimeUnit::Microseconds),
             "ms" => Ok(polars::prelude::TimeUnit::Milliseconds),
-            _ => Err(JlrsError::exception(format!("Unknown time unit: {}", s)))?,
+            s => Err(JlrsError::exception(format!("Unknown time unit: {}", s)))?,
           }
         };
         let get_tz = || -> JlrsResult<_> {
           let Some(v) = kwargs.get(&handle, "time_zone") else {
             return Ok(None);
           };
-          let s = unsafe { v.as_value() };
+          let s = unsafe { v.as_managed() };
           if s.is::<Nothing>() {
             return Ok(None);
           }
-          let s = s.unbox::<String>()?.map_err(|_| JlrsError::exception(format!("time_zone is not a String")))?;
-          Ok(Some(s.as_str().to_string()))
+          let s = s.cast::<JuliaString>()?;
+          Ok(Some(s.as_str()?.to_string()))
         };
         let get_dtype = |key: &str| -> JlrsResult<_> {
           let Some(v) = kwargs.get(&handle, key) else {
             return Err(JlrsError::exception(format!("Missing {}", key)))?;
           };
           let v = unsafe { v.as_value() };
-          let dt = v.track_shared::<polars_value_type_t>()?.inner.clone();
-          Ok(dt)
+          let intoraw = inline_static_ref!(INTORAW_FUNCTION, Value, "Polars.DataTypes.intoraw", handle);
+          match v.track_shared::<polars_value_type_t>() {
+            Ok(dt) => Ok(dt.inner.clone()),
+            Err(_) => match unsafe { intoraw.call(&handle, [v]) } {
+              Ok(v) => {
+                let v = unsafe { v.as_value() };
+                Ok(v.track_shared::<polars_value_type_t>()?.inner.clone())
+              },
+              Err(e) => Err(JlrsError::exception(format!("Error calling intoraw: {:?}", e)))?,
+            },
+          }
         };
         let get_size = |key: &str| -> JlrsResult<_> {
           let Some(v) = kwargs.get(&handle, key) else {

@@ -1,6 +1,6 @@
 module DataTypes
 
-import ..FFI: polars_value_type_t
+import ..FFI: polars_value_type_t, polars_value_type_from_name_and_kwargs
 
 abstract type DataType end
 struct Null <: DataType end
@@ -163,5 +163,6 @@ function kwargs(dtype::DataType)::NamedTuple
     return ()
   end
 end
+intoraw(dtype::DataType)::polars_value_type_t = polars_value_type_from_name_and_kwargs(type(dtype), kwargs(dtype))
 
 end # module DataTypes
