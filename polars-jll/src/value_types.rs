@@ -1,7 +1,7 @@
 use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 use polars::prelude::TimeZone;
 
-use crate::utils::{leak_string, leak_symbol, leak_value, JuliaNamedTupleExt, JuliaValueExt};
+use crate::{errors::JuliaPolarsError, utils::{leak_string, leak_symbol, leak_value, JuliaNamedTupleExt, JuliaValueExt}};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -108,7 +108,7 @@ impl polars_value_type_t {
         let result = NamedTuple::new(&handle, &keys, &vals).map_err(|e| JlrsError::exception(format!("{:?}", e)))?;
         Ok(unsafe { result.as_value().leak() })
       },
-      Err(_) => panic!("Could not create weak handle to Julia."),
+      Err(_) => JuliaPolarsError::WeakHandleError("polars_value_type_t::kwargs").panic(),
     }
   }
 
@@ -116,7 +116,7 @@ impl polars_value_type_t {
     match weak_handle!() {
       Ok(handle) => {
         let name = name.as_managed()?.as_str()?;
-        let kwargs = unsafe { kwargs.as_managed_unchecked() };
+        let kwargs = kwargs.as_managed()?;
         println!("from_name_and_kwargs: name={}, kwargs={:?}", name, kwargs.field_names().iter().map(|i| i.as_str().unwrap_or_default()).collect::<Vec<_>>());
         let get_tu = || -> JlrsResult<_> {
           let s = kwargs.get_value(&handle, "time_unit")?.cast::<Symbol>()?;
@@ -211,7 +211,7 @@ impl polars_value_type_t {
         };
         Ok(leak_value(polars_value_type_t { inner: dtype }))
       },
-      Err(_) => panic!("Could not create weak handle to Julia."),
+      Err(_) => JuliaPolarsError::WeakHandleError("polars_value_type_t::from_name_and_kwargs").panic(),
     }
   }
 }

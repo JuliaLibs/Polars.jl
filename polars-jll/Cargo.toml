@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 [dependencies]
 jlrs = { git = "https://github.com/Taaitaaiger/jlrs", features = ["jlrs-derive", "ccall"] }
 polars = { version = "0.50.0", features = ["lazy", "parquet"] }
+thiserror = "2.0.16"
 
 [features]
 default = [

@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 
-use crate::{polars_value_type_t, utils::leak_value, value_types::time_unit_as_str, ValueTypeRet};
+use crate::{errors::JuliaPolarsError, polars_value_type_t, utils::leak_value, value_types::time_unit_as_str, ValueTypeRet};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -60,7 +60,7 @@ impl polars_value_t {
           },
         }
       }
-      Err(_) => panic!("Could not create weak handle to Julia."),
+      Err(_) => JuliaPolarsError::WeakHandleError("polars_value_t::extract").panic(),
     }
   }
 }

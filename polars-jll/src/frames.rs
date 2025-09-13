@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, value::typed::TypedValue}, types::abstract_type::IO}, error::JlrsError, prelude::*, weak_handle};
 
-use crate::{polars_column_t, utils::{leak_value, IOWrapper, TypedVecExt}, CCallResult, ColumnValue};
+use crate::{errors::JuliaPolarsError, polars_column_t, utils::{leak_value, IOWrapper, TypedVecExt}, CCallResult, ColumnValue};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -49,7 +49,7 @@ impl polars_dataframe_t {
         writeln!(w, "{}", self.inner).map_err(JlrsError::other)?;
         Ok(())
       },
-      Err(_) => panic!("Could not create weak handle to Julia."),
+      Err(_) => JuliaPolarsError::WeakHandleError("polars_dataframe_t::show").panic(),
     }
   }
 

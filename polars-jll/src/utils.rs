@@ -1,12 +1,14 @@
 use jlrs::{convert::{into_julia::IntoJulia, unbox::Unbox}, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::typed::TypedValue, Weak}, types::{abstract_type::IO, construct_type::ConstructType, typecheck::Typecheck}}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 
+use crate::errors::JuliaPolarsError;
+
 
 pub(crate) fn leak_symbol(s: &'static str) -> SymbolRet {
   match weak_handle!() {
     Ok(handle) => {
       Symbol::new(&handle, s).leak()
     },
-    Err(_) => panic!("Could not create weak handle to Julia."),
+    Err(_) => JuliaPolarsError::WeakHandleError("leak_symbol").panic(),
   }
 }
 
@@ -15,7 +17,7 @@ pub(crate) fn leak_string<S: AsRef<str>>(s: S) -> StringRet {
     Ok(handle) => {
       JuliaString::new(handle, s).leak()
     },
-    Err(_) => panic!("Could not create weak handle to Julia."),
+    Err(_) => JuliaPolarsError::WeakHandleError("leak_string").panic(),
   }
 }
 
@@ -24,7 +26,7 @@ pub(crate) fn leak_value<T: ConstructType + IntoJulia>(value: T) -> CCallRefRet<
     Ok(handle) => {
       CCallRefRet::new(TypedValue::new(handle, value).leak())
     },
-    Err(_) => panic!("Could not create weak handle to Julia."),
+    Err(_) => JuliaPolarsError::WeakHandleError("leak_value").panic(),
   }
 }
 
