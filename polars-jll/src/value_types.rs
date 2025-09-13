@@ -1,6 +1,7 @@
 use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, prelude::*, weak_handle};
+use polars::prelude::TimeZone;
 
-use crate::utils::{leak_string, leak_symbol};
+use crate::utils::{leak_string, leak_symbol, leak_value};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -106,6 +107,112 @@ impl polars_value_type_t {
         }
         let result = NamedTuple::new(&handle, &keys, &vals).map_err(|e| JlrsError::exception(format!("{:?}", e)))?;
         Ok(unsafe { result.as_value().leak() })
+      },
+      Err(_) => panic!("Could not create weak handle to Julia."),
+    }
+  }
+
+  pub fn from_name_and_kwargs<'scope, 'data>(name: CCallRef<'scope, Symbol<'scope>>, kwargs: CCallRef<'scope, NamedTuple<'scope, 'static>>) -> JlrsResult<ValueTypeRet> {
+    match weak_handle!() {
+      Ok(handle) => {
+        let name = name.as_managed()?.as_str()?;
+        let kwargs = unsafe { kwargs.as_managed_unchecked() };
+        println!("from_name_and_kwargs: name={}, kwargs={:?}", name, kwargs.field_names().iter().map(|i| i.as_str().unwrap_or_default()).collect::<Vec<_>>());
+        let get_tu = || -> JlrsResult<_> {
+          let Some(v) = kwargs.get(&handle, "time_unit") else {
+            return Err(JlrsError::exception("Missing time_unit"))?;
+          };
+          let s = unsafe { v.as_value() }.unbox::<String>()?.map_err(|_| JlrsError::exception(format!("time_unit is not a String")))?;
+          match s.as_str() {
+            "ns" => Ok(polars::prelude::TimeUnit::Nanoseconds),
+            "μs" => Ok(polars::prelude::TimeUnit::Microseconds),
+            "ms" => Ok(polars::prelude::TimeUnit::Milliseconds),
+            _ => Err(JlrsError::exception(format!("Unknown time unit: {}", s)))?,
+          }
+        };
+        let get_tz = || -> JlrsResult<_> {
+          let Some(v) = kwargs.get(&handle, "time_zone") else {
+            return Ok(None);
+          };
+          let s = unsafe { v.as_value() };
+          if s.is::<Nothing>() {
+            return Ok(None);
+          }
+          let s = s.unbox::<String>()?.map_err(|_| JlrsError::exception(format!("time_zone is not a String")))?;
+          Ok(Some(s.as_str().to_string()))
+        };
+        let get_dtype = |key: &str| -> JlrsResult<_> {
+          let Some(v) = kwargs.get(&handle, key) else {
+            return Err(JlrsError::exception(format!("Missing {}", key)))?;
+          };
+          let v = unsafe { v.as_value() };
+          let dt = v.track_shared::<polars_value_type_t>()?.inner.clone();
+          Ok(dt)
+        };
+        let get_size = |key: &str| -> JlrsResult<_> {
+          let Some(v) = kwargs.get(&handle, key) else {
+            return Err(JlrsError::exception(format!("Missing {}", key)))?;
+          };
+          let v = unsafe { v.as_value() };
+          let size = v.unbox::<i64>()?;
+          // println!("size value: k={} {:?}", key, size);
+          Ok(size as usize)
+        };
+        let dtype = match name {
+          "Null" => polars::prelude::DataType::Null,
+          "Boolean" => polars::prelude::DataType::Boolean,
+          "String" => polars::prelude::DataType::String,
+          "Binary" => polars::prelude::DataType::Binary,
+          "BinaryOffset" => polars::prelude::DataType::BinaryOffset,
+          "Int8" => polars::prelude::DataType::Int8,
+          "Int16" => polars::prelude::DataType::Int16,
+          "Int32" => polars::prelude::DataType::Int32,
+          "Int64" => polars::prelude::DataType::Int64,
+          "Int128" => polars::prelude::DataType::Int128,
+          "UInt8" => polars::prelude::DataType::UInt8,
+          "UInt16" => polars::prelude::DataType::UInt16,
+          "UInt32" => polars::prelude::DataType::UInt32,
+          "UInt64" => polars::prelude::DataType::UInt64,
+          "Float32" => polars::prelude::DataType::Float32,
+          "Float64" => polars::prelude::DataType::Float64,
+          "Date" => polars::prelude::DataType::Date,
+          "Time" => polars::prelude::DataType::Time,
+          "Datetime" => {
+            let tu = get_tu()?;
+            let tz = get_tz()?.map(|s| unsafe { TimeZone::new_unchecked(s) });
+            polars::prelude::DataType::Datetime(tu, tz)
+          },
+          "Duration" => {
+            let tu = get_tu()?;
+            polars::prelude::DataType::Duration(tu)
+          },
+          "List" => {
+            let inner = get_dtype("inner")?;
+            polars::prelude::DataType::List(Box::new(inner))
+          },
+          #[cfg(feature = "dtype-array")]
+          "Array" => {
+            let inner = get_dtype("inner")?;
+            let size = get_size("size")?;
+            polars::prelude::DataType::Array(Box::new(inner), size)
+          },
+          #[cfg(feature = "dtype-decimal")]
+          "Decimal" => {
+            let precision = if kwargs.contains("precision") {
+              Some(get_size("precision")?)
+            } else {
+              None
+            };
+            let scale = if kwargs.contains("scale") {
+              Some(get_size("scale")?)
+            } else {
+              None
+            };
+            polars::prelude::DataType::Decimal(precision, scale)
+          },
+          _ => return Err(JlrsError::exception(format!("Unknown data type: {}", name)))?,
+        };
+        Ok(leak_value(polars_value_type_t { inner: dtype }))
       },
       Err(_) => panic!("Could not create weak handle to Julia."),
     }

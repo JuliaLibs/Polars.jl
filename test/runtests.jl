@@ -89,3 +89,36 @@ end
   @test df["col_duration", 1:3] == [Microsecond(1000), Microsecond(2000), Microsecond(3000)]
   @test_throws JlrsCore.JlrsError df["col_null", 4]
 end
+
+@testset "DataType roundtrip tests" begin
+  function test_roundtrip(sym; kwargs...)
+    dt1 = Polars.DataTypes.DataType(sym; kwargs...)
+    @test Polars.DataTypes.type(dt1) == sym
+    @test Polars.DataTypes.kwargs(dt1) == (; kwargs...)
+    println("DataType from symbol: ", dt1)
+    # convert to FFI type and back
+    ffi_type = Polars.intoraw(dt1)
+    dt2 = convert(Polars.DataTypes.DataType, ffi_type)
+    println("DataType from FFI: ", dt2)
+    @test dt1 == dt2
+  end
+  test_roundtrip(:Null)
+  test_roundtrip(:Boolean)
+  test_roundtrip(:Int8)
+  test_roundtrip(:Int16)
+  test_roundtrip(:Int32)
+  test_roundtrip(:Int64)
+  test_roundtrip(:UInt8)
+  test_roundtrip(:UInt16)
+  test_roundtrip(:UInt32)
+  test_roundtrip(:UInt64)
+  test_roundtrip(:Float32)
+  test_roundtrip(:Float64)
+  test_roundtrip(:Decimal, precision=9, scale=2)
+  test_roundtrip(:Datetime, time_unit=:μs, time_zone=nothing)
+  test_roundtrip(:Date)
+  test_roundtrip(:Time, time_unit=:μs)
+  test_roundtrip(:Duration, time_unit=:μs)
+  test_roundtrip(:List, inner=Polars.DataTypes.Int32())
+  test_roundtrip(:Array, inner=Polars.DataTypes.Float64(), size=3)
+end

@@ -41,6 +41,10 @@ Decimal(P::Int, S::Int)::DataType = Decimal{P, S}()
 Array(dt::DataType, n::Int)::DataType = Array{typeof(dt), n}(dt)
 Base.precision(_::Decimal{P, S}) where {P, S} = P
 scale(_::Decimal{P, S}) where {P, S} = S
+timeunit(::DateTime{U}) where {U} = U
+timeunit(::Time{U}) where {U} = U
+timeunit(::Duration{U}) where {U} = U
+arraysize(::Array{T, N}) where {T<:DataType, N} = N
 
 function DataType(sym::Symbol; kwargs...)::DataType
   if sym === :Null
@@ -69,8 +73,9 @@ function DataType(sym::Symbol; kwargs...)::DataType
     return Float64()
   elseif sym === :Decimal
     # TODO: default precision and scale
-    precision = get(kwargs, :precision, 10)
-    scale = get(kwargs, :scale, 2)
+    precision = something(get(kwargs, :precision, nothing), 10)
+    scale = something(get(kwargs, :scale, nothing), 2)
+    println("Decimal: precision=$precision, scale=$scale")
     return Decimal(precision, scale)
   elseif sym === :Datetime
     unit = kwargs[:time_unit]
@@ -92,6 +97,70 @@ function DataType(sym::Symbol; kwargs...)::DataType
     return Array(inner, n)
   else
     throw(ArgumentError("Unimplemented data type symbol: $sym"))
+  end
+end
+function type(dtype::DataType)::Symbol
+  if dtype isa Null
+    return :Null
+  elseif dtype isa Boolean
+    return :Boolean
+  elseif dtype isa Int8
+    return :Int8
+  elseif dtype isa Int16
+    return :Int16
+  elseif dtype isa Int32
+    return :Int32
+  elseif dtype isa Int64
+    return :Int64
+  elseif dtype isa UInt8
+    return :UInt8
+  elseif dtype isa UInt16
+    return :UInt16
+  elseif dtype isa UInt32
+    return :UInt32
+  elseif dtype isa UInt64
+    return :UInt64
+  elseif dtype isa Float32
+    return :Float32
+  elseif dtype isa Float64
+    return :Float64
+  elseif dtype isa Decimal
+    return :Decimal
+  elseif dtype isa DateTime
+    return :Datetime
+  elseif dtype isa Date
+    return :Date
+  elseif dtype isa Time
+    return :Time
+  elseif dtype isa Duration
+    return :Duration
+  elseif dtype isa List
+    return :List
+  elseif dtype isa Array
+    return :Array
+  elseif dtype isa Unknown
+    return dtype.tag
+  else
+    throw(ArgumentError("Unimplemented data type: $dtype"))
+  end
+end
+function kwargs(dtype::DataType)::NamedTuple
+  if dtype isa Decimal
+    return (; precision=precision(dtype), scale=scale(dtype))
+  elseif dtype isa DateTime
+    return (; time_unit=timeunit(dtype), time_zone=dtype.time_zone)
+  elseif dtype isa Time
+    return (; time_unit=timeunit(dtype),)
+  elseif dtype isa Duration
+    return (; time_unit=timeunit(dtype),)
+  elseif dtype isa List
+    return (; inner=dtype.inner,)
+  elseif dtype isa Array
+    return (; inner=dtype.inner, size=arraysize(dtype),)
+  elseif dtype isa Unknown
+    return ()
+  else
+    return ()
   end
 end
 

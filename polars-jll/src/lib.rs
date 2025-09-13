@@ -2,7 +2,7 @@ use core::panic;
 
 use jlrs::{
   data::{
-    managed::{ccall_ref::{CCallRef, CCallRefRet}, string::StringRet, symbol::SymbolRet, value::ValueRet},
+    managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::ValueRet},
     types::abstract_type::IO
   }, prelude::*
 };
@@ -55,6 +55,7 @@ julia_module!{
   // this is actually JlrsResult<NamedTupleRet>
   // https://github.com/Taaitaaiger/jlrs/issues/197
   in polars_value_type_t fn kwargs(&self) -> JlrsResult<ValueRet> as polars_value_type_kwargs;
+  in polars_value_type_t fn from_name_and_kwargs(name: CCallRef<Symbol>, kwargs: CCallRef<NamedTuple<'_, 'static>>) -> JlrsResult<ValueTypeRet> as polars_value_type_from_name_and_kwargs;
 
   struct polars_value_t;
   in polars_value_t fn dtype(&self) -> ValueTypeRet as polars_value_dtype;
