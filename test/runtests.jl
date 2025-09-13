@@ -54,14 +54,19 @@ end
   @test length(col) == 0
   @test Polars.null_count(col) == 0
   dtype = Polars.dtype(col)
-  println("Column dtype: ", dtype)
-  df = Polars.DataFrame([col])
+  @test typeof(dtype) == Polars.DataTypes.Int64
+  col2 = Polars.Column("mycol2", dtype=Polars.DataTypes.Float32())
+  df = Polars.DataFrame([col, col2])
   @test Polars.height(df) == 0
   show(df)
   col = Polars.get_column(df, "mycol")
   @test Polars.name(col) == "mycol"
   dtype = Polars.dtype(col)
-  println("Column dtype: ", dtype)
+  @test typeof(dtype) == Polars.DataTypes.Int64
+  col2 = Polars.get_column(df, "mycol2")
+  @test Polars.name(col2) == "mycol2"
+  dtype = Polars.dtype(col2)
+  @test typeof(dtype) == Polars.DataTypes.Float32
   @test_throws JlrsCore.JlrsError Polars.get_column(df, "nonexistent")
 end
 

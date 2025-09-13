@@ -31,7 +31,7 @@ read_parquet(path::String)::DataFrame = FFI.polars_dataframe_read_parquet(path)
 write_parquet(df::DataFrame, path::String)::Nothing = FFI.polars_dataframe_write_parquet(df.inner, path)
 get_column(df::DataFrame, name::String)::Column = FFI.polars_dataframe_get_column(df.inner, name)
 
-Column(name::String; dtype::DataType=DataTypes.Int64())::Column = FFI.polars_column_new_empty(name)
+Column(name::String; dtype::DataType=DataTypes.Int64())::Column = FFI.polars_column_new_empty(name, intoraw(dtype))
 Base.convert(::Type{Column}, col::FFI.polars_column_t) = Column(col)
 Base.unsafe_convert(::Type{FFI.polars_column_t}, col::Column) = col.inner
 Base.length(col::Column) = FFI.polars_column_len(col.inner)
@@ -56,5 +56,6 @@ function Base.convert(::Type{DataType}, dtype::FFI.polars_value_type_t)::DataTyp
   end
 end
 intoraw(dtype::DataType)::polars_value_type_t = DataTypes.intoraw(dtype)
+intoraw(dtype::polars_value_type_t)::polars_value_type_t = dtype
 
 end # module Polars

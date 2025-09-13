@@ -10,7 +10,7 @@ pub struct polars_value_t {
 }
 
 pub type AnyValueRet = CCallRefRet<polars_value_t>;
-pub type AnyValueRef<'data> = CCallRef<'data, polars_value_t>;
+pub type AnyValueRef<'scope> = CCallRef<'scope, AnyValueValue<'scope, 'static>>;
 pub type AnyValueValue<'scope, 'data> = TypedValue<'scope, 'data, polars_value_t>;
 
 impl polars_value_t {
@@ -65,12 +65,12 @@ impl polars_value_t {
   }
 }
 
-fn jl_datetime<'scope>(handle: impl Target<'scope>, s: i64, unit: &'static str, tz: Option<&str>) -> JlrsResult<ValueRet> {
-  let s = unsafe { TypedValue::new(&handle, s).as_value() };
-  let unit = Symbol::new(&handle, unit).as_value();
+fn jl_datetime<'scope>(handle: &impl Target<'scope>, s: i64, unit: &'static str, tz: Option<&str>) -> JlrsResult<ValueRet> {
+  let s = unsafe { TypedValue::new(handle, s).as_value() };
+  let unit = Symbol::new(handle, unit).as_value();
   let tz = match tz {
-    Some(tz) => unsafe { JuliaString::new(&handle, tz).as_value() },
-    None => Value::nothing(&handle),
+    Some(tz) => unsafe { JuliaString::new(handle, tz).as_value() },
+    None => Value::nothing(handle),
   };
   let _jl_datetime = inline_static_ref!(JL_DATETIME_FUNCTION, Value, "Polars.FFI._jl_datetime", handle);
   match unsafe { _jl_datetime.call(&handle, [s, unit, tz]) } {
@@ -79,29 +79,29 @@ fn jl_datetime<'scope>(handle: impl Target<'scope>, s: i64, unit: &'static str, 
   }
 }
 
-fn jl_date<'scope>(handle: impl Target<'scope>, d: i32) -> JlrsResult<ValueRet> {
-  let d = unsafe { TypedValue::new(&handle, d).as_value() };
+fn jl_date<'scope>(handle: &impl Target<'scope>, d: i32) -> JlrsResult<ValueRet> {
+  let d = unsafe { TypedValue::new(handle, d).as_value() };
   let _jl_date = inline_static_ref!(JL_DATE_FUNCTION, Value, "Polars.FFI._jl_date", handle);
-  match unsafe { _jl_date.call(&handle, [d]) } {
+  match unsafe { _jl_date.call(handle, [d]) } {
     Ok(v) => Ok(v.leak()),
     Err(e) => Err(JlrsError::exception(format!("Error calling _jl_date: {:?}", e)))?,
   }
 }
 
-fn jl_time<'scope>(handle: impl Target<'scope>, t: i64) -> JlrsResult<ValueRet> {
-  let t = unsafe { TypedValue::new(&handle, t).as_value() };
+fn jl_time<'scope>(handle: &impl Target<'scope>, t: i64) -> JlrsResult<ValueRet> {
+  let t = unsafe { TypedValue::new(handle, t).as_value() };
   let _jl_time = inline_static_ref!(JL_TIME_FUNCTION, Value, "Polars.FFI._jl_time", handle);
-  match unsafe { _jl_time.call(&handle, [t]) } {
+  match unsafe { _jl_time.call(handle, [t]) } {
     Ok(v) => Ok(v.leak()),
     Err(e) => Err(JlrsError::exception(format!("Error calling _jl_time: {:?}", e)))?,
   }
 }
 
-fn jl_period<'scope>(handle: impl Target<'scope>, d: i64, unit: &'static str) -> JlrsResult<ValueRet> {
-  let d = unsafe { TypedValue::new(&handle, d).as_value() };
-  let unit = Symbol::new(&handle, unit).as_value();
+fn jl_period<'scope>(handle: &impl Target<'scope>, d: i64, unit: &'static str) -> JlrsResult<ValueRet> {
+  let d = unsafe { TypedValue::new(handle, d).as_value() };
+  let unit = Symbol::new(handle, unit).as_value();
   let _jl_period = inline_static_ref!(JL_PERIOD_FUNCTION, Value, "Polars.FFI._jl_period", handle);
-  match unsafe { _jl_period.call(&handle, [d, unit]) } {
+  match unsafe { _jl_period.call(handle, [d, unit]) } {
     Ok(v) => Ok(v.leak()),
     Err(e) => Err(JlrsError::exception(format!("Error calling _jl_period: {:?}", e)))?,
   }

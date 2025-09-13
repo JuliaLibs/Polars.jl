@@ -1,7 +1,7 @@
 use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 use polars::prelude::TimeZone;
 
-use crate::utils::{leak_string, leak_symbol, leak_value};
+use crate::utils::{leak_string, leak_symbol, leak_value, JuliaNamedTupleExt, JuliaValueExt};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -11,7 +11,7 @@ pub struct polars_value_type_t {
 
 // since DataType is used in julia, we use term ValueType instead
 pub type ValueTypeRet = CCallRefRet<polars_value_type_t>;
-pub type ValueTypeRef<'data> = CCallRef<'data, polars_value_type_t>;
+pub type ValueTypeRef<'scope> = CCallRef<'scope, ValueTypeValue<'scope, 'static>>;
 pub type ValueTypeValue<'scope, 'data> = TypedValue<'scope, 'data, polars_value_type_t>;
 
 
@@ -31,8 +31,8 @@ impl polars_value_type_t {
       Ok(handle) => {
         let mut keys = Vec::<Symbol>::new();
         let mut vals = Vec::<Value>::new();
-        fn jl_value<'s, 'd, T: IntoJulia + ConstructType>(handle: impl Target<'s>, v: T) -> Value<'s, 'd> {
-          unsafe { TypedValue::new(&handle, v).as_value() }
+        fn jl_value<'s, 'd, T: IntoJulia + ConstructType>(handle: &impl Target<'s>, v: T) -> Value<'s, 'd> {
+          unsafe { TypedValue::new(handle, v).as_value() }
         }
         let sym = |s: &str| Symbol::new(&handle, s);
         let jl_none = || { Value::nothing(&handle) };
@@ -119,10 +119,7 @@ impl polars_value_type_t {
         let kwargs = unsafe { kwargs.as_managed_unchecked() };
         println!("from_name_and_kwargs: name={}, kwargs={:?}", name, kwargs.field_names().iter().map(|i| i.as_str().unwrap_or_default()).collect::<Vec<_>>());
         let get_tu = || -> JlrsResult<_> {
-          let Some(v) = kwargs.get(&handle, "time_unit") else {
-            return Err(JlrsError::exception("Missing time_unit"))?;
-          };
-          let s = unsafe { v.as_managed() }.cast::<Symbol>()?;
+          let s = kwargs.get_value(&handle, "time_unit")?.cast::<Symbol>()?;
           match s.as_str()? {
             "ns" => Ok(polars::prelude::TimeUnit::Nanoseconds),
             "μs" => Ok(polars::prelude::TimeUnit::Microseconds),
@@ -131,21 +128,16 @@ impl polars_value_type_t {
           }
         };
         let get_tz = || -> JlrsResult<_> {
-          let Some(v) = kwargs.get(&handle, "time_zone") else {
+          let Ok(v) = kwargs.get_value(&handle, "time_zone") else {
+            return Ok(None)
+          };
+          let Some(v) = v.as_cast_opt::<JuliaString>()? else {
             return Ok(None);
           };
-          let s = unsafe { v.as_managed() };
-          if s.is::<Nothing>() {
-            return Ok(None);
-          }
-          let s = s.cast::<JuliaString>()?;
-          Ok(Some(s.as_str()?.to_string()))
+          Ok(Some(v.as_str()?.to_string()))
         };
         let get_dtype = |key: &str| -> JlrsResult<_> {
-          let Some(v) = kwargs.get(&handle, key) else {
-            return Err(JlrsError::exception(format!("Missing {}", key)))?;
-          };
-          let v = unsafe { v.as_value() };
+          let v = kwargs.get_value(&handle, key)?;
           let intoraw = inline_static_ref!(INTORAW_FUNCTION, Value, "Polars.DataTypes.intoraw", handle);
           match v.track_shared::<polars_value_type_t>() {
             Ok(dt) => Ok(dt.inner.clone()),
@@ -159,11 +151,7 @@ impl polars_value_type_t {
           }
         };
         let get_size = |key: &str| -> JlrsResult<_> {
-          let Some(v) = kwargs.get(&handle, key) else {
-            return Err(JlrsError::exception(format!("Missing {}", key)))?;
-          };
-          let v = unsafe { v.as_value() };
-          let size = v.unbox::<i64>()?;
+          let size = kwargs.get_value(&handle, key)?.unbox::<i64>()?;
           // println!("size value: k={} {:?}", key, size);
           Ok(size as usize)
         };

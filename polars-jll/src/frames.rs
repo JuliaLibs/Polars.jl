@@ -10,7 +10,7 @@ pub struct polars_dataframe_t {
 }
 
 pub type DataFrameRet = CCallRefRet<polars_dataframe_t>;
-pub type DataFrameRef<'data> = CCallRef<'data, polars_dataframe_t>;
+pub type DataFrameRef<'scope> = CCallRef<'scope, DataFrameValue<'scope, 'static>>;
 pub type DataFrameValue<'scope, 'data> = TypedValue<'scope, 'data, polars_dataframe_t>;
 
 impl polars_dataframe_t {

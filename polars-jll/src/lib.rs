@@ -41,7 +41,7 @@ julia_module!{
   in polars_dataframe_t fn get_column(&self, name: JuliaString) -> JlrsResult<ColumnRet> as polars_dataframe_get_column;
 
   struct polars_column_t;
-  in polars_column_t fn new_empty(name: JuliaString) -> JlrsResult<ColumnRet> as polars_column_new_empty;
+  in polars_column_t fn new_empty(name: JuliaString, dtype: ValueTypeRef) -> JlrsResult<ColumnRet> as polars_column_new_empty;
   in polars_column_t fn len(&self) -> usize as polars_column_len;
   in polars_column_t fn dtype(&self) -> ValueTypeRet as polars_column_dtype;
   in polars_column_t fn name(&self) -> StringRet as polars_column_name;

@@ -1,4 +1,4 @@
-use jlrs::{convert::into_julia::IntoJulia, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, string::StringRet, symbol::SymbolRet, value::typed::TypedValue}, types::{abstract_type::IO, construct_type::ConstructType}}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
+use jlrs::{convert::{into_julia::IntoJulia, unbox::Unbox}, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::typed::TypedValue, Weak}, types::{abstract_type::IO, construct_type::ConstructType, typecheck::Typecheck}}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
 
 
 pub(crate) fn leak_symbol(s: &'static str) -> SymbolRet {
@@ -93,5 +93,71 @@ impl<'scope, 'data, T> TypedVecExt<'scope, 'data, T> for TypedVec<'scope, 'data,
         None => Err(JlrsError::exception("Could not load column"))?,
       })
       .collect()
+  }
+}
+
+pub(crate) trait JuliaNamedTupleExt<'scope, 'data> {
+  fn get_value(&self, handle: &impl Target<'scope>, key: &str) -> JlrsResult<Value<'scope, 'data>>;
+}
+
+impl<'scope, 'data> JuliaNamedTupleExt<'scope, 'data> for NamedTuple<'scope, 'data> {
+  fn get_value(&self, handle: &impl Target<'scope>, key: &str) -> JlrsResult<Value<'scope, 'data>> {
+    let Some(v) = self.get(handle, key) else {
+      return Err(JlrsError::exception(format!("Missing {}", key)))?;
+    };
+    Ok(unsafe { v.as_value() })
+  }
+}
+
+#[allow(unused)]
+pub(crate) trait JuliaValueExt<'scope, 'data> {
+  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>>;
+  fn as_cast<T: Managed<'scope, 'data> + Typecheck>(&self) -> JlrsResult<T> {
+    self._as_value()?.cast()
+  }
+  fn as_cast_opt<T: Managed<'scope, 'data> + Typecheck>(&self) -> JlrsResult<Option<T>> {
+    match self._as_value() {
+      Ok(v) => {
+        if v.is::<Nothing>() {
+          return Ok(None);
+        }
+        Ok(Some(v.cast()?))
+      },
+      Err(_) => Ok(None),
+    }
+  }
+  fn as_unbox<T: Unbox<Output=T> + Typecheck>(&self) -> JlrsResult<T> {
+    let v = self._as_value()?;
+    v.unbox::<T>()
+  }
+}
+
+impl<'scope, 'data> JuliaValueExt<'scope, 'data> for Weak<'scope, 'data, Value<'scope, 'data>> {
+  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>> {
+    Ok(unsafe { self.as_value() })
+  }
+}
+
+impl<'scope, 'data> JuliaValueExt<'scope, 'data> for CCallRef<'scope, Value<'scope, 'data>> {
+  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>> {
+    self.as_value()
+  }
+}
+
+impl<'scope, 'data> JuliaValueExt<'scope, 'data> for Value<'scope, 'data> {
+  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>> {
+    Ok(self.clone())
+  }
+}
+
+pub(crate) trait CCallRefExt<'scope, T> {
+  fn tracked_map<'borrow, F: FnOnce(&T) -> U, U>(&'borrow self, f: F) -> JlrsResult<U>;
+}
+
+impl<'scope, T: ConstructType + ValidLayout> CCallRefExt<'scope, T> for CCallRef<'scope, TypedValue<'scope, 'static, T>> {
+  fn tracked_map<'borrow, F: FnOnce(&T) -> U, U>(&'borrow self, f: F) -> JlrsResult<U> {
+    let v = self.as_value()?;
+    let v = v.track_shared::<T>()?;
+    Ok(f(&v))
   }
 }
