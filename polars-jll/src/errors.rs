@@ -6,8 +6,10 @@ use polars::error::PolarsError;
 
 use crate::utils::leak_string;
 
+pub type PolarsJlResult<T> = Result<T, PolarsJlError>;
+
 #[derive(Debug, thiserror::Error)]
-pub enum JuliaPolarsError {
+pub enum PolarsJlError {
   #[error("Julia error: {0}")]
   JlrsError(Box<JlrsError>),
   #[error("Polars error: {0}")]
@@ -30,30 +32,36 @@ pub enum JuliaPolarsError {
   UnsupportedAnyValue(&'static str),
 }
 
-impl From<JuliaPolarsError> for Box<JlrsError> {
-  fn from(err: JuliaPolarsError) -> Self {
+impl From<Box<JlrsError>> for PolarsJlError {
+  fn from(err: Box<JlrsError>) -> Self {
+    PolarsJlError::JlrsError(err)
+  }
+}
+
+impl From<PolarsJlError> for Box<JlrsError> {
+  fn from(err: PolarsJlError) -> Self {
     match err {
-      JuliaPolarsError::JlrsError(e) => e,
-      JuliaPolarsError::PolarsError(e) => Box::new(JlrsError::other(e)),
+      PolarsJlError::JlrsError(e) => e,
+      PolarsJlError::PolarsError(e) => Box::new(JlrsError::other(e)),
       _ => Box::new(JlrsError::exception(err.to_string())),
     }
   }
 }
 
-impl JuliaPolarsError {
+impl PolarsJlError {
   pub fn panic(self) -> ! {
     panic!("{}", self.to_string())
   }
 
   pub fn function_call<E: Debug>(func: &'static str, e: E) -> Self {
-    JuliaPolarsError::CallFunctionError(func, Some(format!("{e:?}")))
+    PolarsJlError::CallFunctionError(func, Some(format!("{e:?}")))
   }
 }
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
 pub struct polars_error_t {
-  pub(crate) inner: JuliaPolarsError,
+  pub(crate) inner: PolarsJlError,
 }
 
 impl polars_error_t {
@@ -75,7 +83,7 @@ impl From<polars_error_t> for ValueRet {
         let exception = Value::new(&handle, err);
         exception.leak()
       },
-      Err(_) => JuliaPolarsError::WeakHandleError("ValueRet::from::<polars_error_t>").panic(),
+      Err(_) => PolarsJlError::WeakHandleError("ValueRet::from::<polars_error_t>").panic(),
     }
   }
 }

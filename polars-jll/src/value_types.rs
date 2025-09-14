@@ -1,7 +1,7 @@
 use jlrs::{data::{managed::{ccall_ref::CCallRef, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, inline_static_ref, prelude::*, weak_handle};
 use polars::prelude::TimeZone;
 
-use crate::{errors::JuliaPolarsError, utils::{leak_string, leak_symbol, leak_value, JuliaNamedTupleExt, JuliaValueExt}};
+use crate::{errors::PolarsJlError, utils::{leak_string, leak_symbol, leak_value, JuliaNamedTupleExt, JuliaValueExt}};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -106,10 +106,10 @@ impl polars_value_type_t {
           }
         }
         let result = NamedTuple::new(&handle, &keys, &vals)
-          .map_err(|e| JuliaPolarsError::function_call("NamedTuple::new", e))?;
+          .map_err(|e| PolarsJlError::function_call("NamedTuple::new", e))?;
         Ok(unsafe { result.as_value().leak() })
       },
-      Err(_) => JuliaPolarsError::WeakHandleError("polars_value_type_t::kwargs").panic(),
+      Err(_) => PolarsJlError::WeakHandleError("polars_value_type_t::kwargs").panic(),
     }
   }
 
@@ -125,7 +125,7 @@ impl polars_value_type_t {
             "ns" => Ok(polars::prelude::TimeUnit::Nanoseconds),
             "μs" => Ok(polars::prelude::TimeUnit::Microseconds),
             "ms" => Ok(polars::prelude::TimeUnit::Milliseconds),
-            s => Err(JuliaPolarsError::TimeUnitError(s.to_string()))?,
+            s => Err(PolarsJlError::TimeUnitError(s.to_string()))?,
           }
         };
         let get_tz = || -> JlrsResult<_> {
@@ -147,7 +147,7 @@ impl polars_value_type_t {
                 let v = unsafe { v.as_value() };
                 Ok(v.track_shared::<polars_value_type_t>()?.inner.clone())
               },
-              Err(e) => Err(JuliaPolarsError::function_call("Polars.DataTypes.intoraw", e))?,
+              Err(e) => Err(PolarsJlError::function_call("Polars.DataTypes.intoraw", e))?,
             },
           }
         };
@@ -208,11 +208,11 @@ impl polars_value_type_t {
             };
             polars::prelude::DataType::Decimal(precision, scale)
           },
-          s => return Err(JuliaPolarsError::UnsupportedDataType(s.to_string()))?,
+          s => return Err(PolarsJlError::UnsupportedDataType(s.to_string()))?,
         };
         Ok(leak_value(polars_value_type_t { inner: dtype }))
       },
-      Err(_) => JuliaPolarsError::WeakHandleError("polars_value_type_t::from_name_and_kwargs").panic(),
+      Err(_) => PolarsJlError::WeakHandleError("polars_value_type_t::from_name_and_kwargs").panic(),
     }
   }
 }

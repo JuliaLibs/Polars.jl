@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use jlrs::{data::managed::{string::StringRet, value::typed::TypedValue}, prelude::*};
 
-use crate::{errors::JuliaPolarsError, polars_value_type_t, utils::{leak_string, leak_value, CCallRefExt}, values::{polars_value_t, AnyValueRet}, ValueTypeRef, ValueTypeRet};
+use crate::{errors::PolarsJlError, polars_value_type_t, utils::{leak_string, leak_value, CCallRefExt}, values::{polars_value_t, AnyValueRet}, ValueTypeRef, ValueTypeRet};
 
 
 #[derive(Debug, OpaqueType)]
@@ -43,7 +43,7 @@ impl polars_column_t {
   }
 
   pub fn get(&self, idx: usize) -> JlrsResult<AnyValueRet> {
-    let v = self.inner.get(idx).map_err(JuliaPolarsError::from)?;
+    let v = self.inner.get(idx).map_err(PolarsJlError::from)?;
     Ok(leak_value(polars_value_t { inner: v.into_static() }))
   }
 }

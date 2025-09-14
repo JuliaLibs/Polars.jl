@@ -1,6 +1,6 @@
 use jlrs::{convert::{into_julia::IntoJulia, unbox::Unbox}, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::typed::TypedValue, Weak}, types::{abstract_type::IO, construct_type::ConstructType, typecheck::Typecheck}}, inline_static_ref, prelude::*, weak_handle};
 
-use crate::errors::JuliaPolarsError;
+use crate::errors::{PolarsJlError, PolarsJlResult};
 
 
 pub(crate) fn leak_symbol(s: &'static str) -> SymbolRet {
@@ -8,7 +8,7 @@ pub(crate) fn leak_symbol(s: &'static str) -> SymbolRet {
     Ok(handle) => {
       Symbol::new(&handle, s).leak()
     },
-    Err(_) => JuliaPolarsError::WeakHandleError("leak_symbol").panic(),
+    Err(_) => PolarsJlError::WeakHandleError("leak_symbol").panic(),
   }
 }
 
@@ -17,7 +17,7 @@ pub(crate) fn leak_string<S: AsRef<str>>(s: S) -> StringRet {
     Ok(handle) => {
       JuliaString::new(handle, s).leak()
     },
-    Err(_) => JuliaPolarsError::WeakHandleError("leak_string").panic(),
+    Err(_) => PolarsJlError::WeakHandleError("leak_string").panic(),
   }
 }
 
@@ -26,7 +26,7 @@ pub(crate) fn leak_value<T: ConstructType + IntoJulia>(value: T) -> CCallRefRet<
     Ok(handle) => {
       CCallRefRet::new(TypedValue::new(handle, value).leak())
     },
-    Err(_) => JuliaPolarsError::WeakHandleError("leak_value").panic(),
+    Err(_) => PolarsJlError::WeakHandleError("leak_value").panic(),
   }
 }
 
@@ -54,7 +54,7 @@ impl<'scope, 'data, T: Target<'scope>> std::io::Write for IOWrapper<'scope, 'dat
 }
 
 /// unsafe_write(io::IO, ref, nbytes::UInt)
-pub(crate) fn unsafe_write<'scope, T: Target<'scope>>(tgt: &T, io: &CCallRef<'scope, IO>, bytes: &[u8]) -> JlrsResult<()> {
+pub(crate) fn unsafe_write<'scope, T: Target<'scope>>(tgt: &T, io: &CCallRef<'scope, IO>, bytes: &[u8]) -> PolarsJlResult<()> {
   tgt.local_scope::<_, 3>(|mut frame| {
     // unsafe_write(s::T, p::Ptr{UInt8}, n::UInt)
     let unsafe_write = inline_static_ref!(UNSAFE_WRITE_FUNCTION, Value, "Base.unsafe_write", frame);
@@ -63,7 +63,7 @@ pub(crate) fn unsafe_write<'scope, T: Target<'scope>>(tgt: &T, io: &CCallRef<'sc
     let arg1 = (bytes.as_ptr() as *mut u8).into_julia(&mut frame);
     let arg2 = bytes.len().into_julia(&mut frame);
     unsafe { unsafe_write.call(&mut frame, [arg0, arg1, arg2]) }
-      .map_err(|e| JuliaPolarsError::function_call("Base.unsafe_write", e))?;
+      .map_err(|e| PolarsJlError::function_call("Base.unsafe_write", e))?;
     Ok(())
   })
 }
@@ -71,14 +71,14 @@ pub(crate) fn unsafe_write<'scope, T: Target<'scope>>(tgt: &T, io: &CCallRef<'sc
 type TypedVec<'scope, 'data, T> = TypedVector<'scope, 'data, TypedValue<'scope, 'data, T>>;
 
 pub trait TypedVecExt<'scope, 'data, T> {
-  fn extract_box<U, F>(&self, f: F) -> JlrsResult<Vec<U>>
+  fn extract_box<U, F>(&self, f: F) -> PolarsJlResult<Vec<U>>
   where
     F: Fn(&T) -> U,
     T: ConstructType + IntoJulia + ValidLayout;
 }
 
 impl<'scope, 'data, T> TypedVecExt<'scope, 'data, T> for TypedVec<'scope, 'data, T> {
-  fn extract_box<U, F>(&self, f: F) -> JlrsResult<Vec<U>>
+  fn extract_box<U, F>(&self, f: F) -> PolarsJlResult<Vec<U>>
   where
     F: Fn(&T) -> U,
     T: ConstructType + IntoJulia + ValidLayout,
@@ -93,20 +93,20 @@ impl<'scope, 'data, T> TypedVecExt<'scope, 'data, T> for TypedVec<'scope, 'data,
           let val = unsafe { val.track_shared()? };
           Ok(f(&val))
         },
-        None => Err(JuliaPolarsError::ExtractBoxError(i))?,
+        None => Err(PolarsJlError::ExtractBoxError(i))?,
       })
       .collect()
   }
 }
 
 pub(crate) trait JuliaNamedTupleExt<'scope, 'data> {
-  fn get_value(&self, handle: &impl Target<'scope>, key: &str) -> JlrsResult<Value<'scope, 'data>>;
+  fn get_value(&self, handle: &impl Target<'scope>, key: &str) -> PolarsJlResult<Value<'scope, 'data>>;
 }
 
 impl<'scope, 'data> JuliaNamedTupleExt<'scope, 'data> for NamedTuple<'scope, 'data> {
-  fn get_value(&self, handle: &impl Target<'scope>, key: &str) -> JlrsResult<Value<'scope, 'data>> {
+  fn get_value(&self, handle: &impl Target<'scope>, key: &str) -> PolarsJlResult<Value<'scope, 'data>> {
     let Some(v) = self.get(handle, key) else {
-      return Err(JuliaPolarsError::NamedTupleMissingField(key.to_string()))?;
+      return Err(PolarsJlError::NamedTupleMissingField(key.to_string()))?;
     };
     Ok(unsafe { v.as_value() })
   }
@@ -114,11 +114,11 @@ impl<'scope, 'data> JuliaNamedTupleExt<'scope, 'data> for NamedTuple<'scope, 'da
 
 #[allow(unused)]
 pub(crate) trait JuliaValueExt<'scope, 'data> {
-  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>>;
-  fn as_cast<T: Managed<'scope, 'data> + Typecheck>(&self) -> JlrsResult<T> {
-    self._as_value()?.cast()
+  fn _as_value(&self) -> PolarsJlResult<Value<'scope, 'data>>;
+  fn as_cast<T: Managed<'scope, 'data> + Typecheck>(&self) -> PolarsJlResult<T> {
+    Ok(self._as_value()?.cast()?)
   }
-  fn as_cast_opt<T: Managed<'scope, 'data> + Typecheck>(&self) -> JlrsResult<Option<T>> {
+  fn as_cast_opt<T: Managed<'scope, 'data> + Typecheck>(&self) -> PolarsJlResult<Option<T>> {
     match self._as_value() {
       Ok(v) => {
         if v.is::<Nothing>() {
@@ -129,36 +129,36 @@ pub(crate) trait JuliaValueExt<'scope, 'data> {
       Err(_) => Ok(None),
     }
   }
-  fn as_unbox<T: Unbox<Output=T> + Typecheck>(&self) -> JlrsResult<T> {
+  fn as_unbox<T: Unbox<Output=T> + Typecheck>(&self) -> PolarsJlResult<T> {
     let v = self._as_value()?;
-    v.unbox::<T>()
+    Ok(v.unbox::<T>()?)
   }
 }
 
 impl<'scope, 'data> JuliaValueExt<'scope, 'data> for Weak<'scope, 'data, Value<'scope, 'data>> {
-  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>> {
+  fn _as_value(&self) -> PolarsJlResult<Value<'scope, 'data>> {
     Ok(unsafe { self.as_value() })
   }
 }
 
 impl<'scope, 'data> JuliaValueExt<'scope, 'data> for CCallRef<'scope, Value<'scope, 'data>> {
-  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>> {
-    self.as_value()
+  fn _as_value(&self) -> PolarsJlResult<Value<'scope, 'data>> {
+    Ok(self.as_value()?)
   }
 }
 
 impl<'scope, 'data> JuliaValueExt<'scope, 'data> for Value<'scope, 'data> {
-  fn _as_value(&self) -> JlrsResult<Value<'scope, 'data>> {
+  fn _as_value(&self) -> PolarsJlResult<Value<'scope, 'data>> {
     Ok(self.clone())
   }
 }
 
 pub(crate) trait CCallRefExt<'scope, T> {
-  fn tracked_map<'borrow, F: FnOnce(&T) -> U, U>(&'borrow self, f: F) -> JlrsResult<U>;
+  fn tracked_map<'borrow, F: FnOnce(&T) -> U, U>(&'borrow self, f: F) -> PolarsJlResult<U>;
 }
 
 impl<'scope, T: ConstructType + ValidLayout> CCallRefExt<'scope, T> for CCallRef<'scope, TypedValue<'scope, 'static, T>> {
-  fn tracked_map<'borrow, F: FnOnce(&T) -> U, U>(&'borrow self, f: F) -> JlrsResult<U> {
+  fn tracked_map<'borrow, F: FnOnce(&T) -> U, U>(&'borrow self, f: F) -> PolarsJlResult<U> {
     let v = self.as_value()?;
     let v = v.track_shared::<T>()?;
     Ok(f(&v))
