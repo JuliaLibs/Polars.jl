@@ -1,4 +1,4 @@
-use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
+use jlrs::{data::{managed::{ccall_ref::CCallRef, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::{typed::TypedValue, ValueRet}}, types::construct_type::ConstructType}, inline_static_ref, prelude::*, weak_handle};
 use polars::prelude::TimeZone;
 
 use crate::{errors::JuliaPolarsError, utils::{leak_string, leak_symbol, leak_value, JuliaNamedTupleExt, JuliaValueExt}};
@@ -10,8 +10,8 @@ pub struct polars_value_type_t {
 }
 
 // since DataType is used in julia, we use term ValueType instead
-pub type ValueTypeRet = CCallRefRet<polars_value_type_t>;
-pub type ValueTypeRef<'scope> = CCallRef<'scope, ValueTypeValue<'scope, 'static>>;
+pub type ValueTypeRet = jlrs::data::managed::ccall_ref::CCallRefRet<polars_value_type_t>;
+pub type ValueTypeRef<'scope> = jlrs::data::managed::ccall_ref::CCallRef<'scope, ValueTypeValue<'scope, 'static>>;
 pub type ValueTypeValue<'scope, 'data> = TypedValue<'scope, 'data, polars_value_type_t>;
 
 
@@ -105,7 +105,8 @@ impl polars_value_type_t {
             vals.push(jl_dtype(raw));
           }
         }
-        let result = NamedTuple::new(&handle, &keys, &vals).map_err(|e| JlrsError::exception(format!("{:?}", e)))?;
+        let result = NamedTuple::new(&handle, &keys, &vals)
+          .map_err(|e| JuliaPolarsError::function_call("NamedTuple::new", e))?;
         Ok(unsafe { result.as_value().leak() })
       },
       Err(_) => JuliaPolarsError::WeakHandleError("polars_value_type_t::kwargs").panic(),
@@ -124,7 +125,7 @@ impl polars_value_type_t {
             "ns" => Ok(polars::prelude::TimeUnit::Nanoseconds),
             "μs" => Ok(polars::prelude::TimeUnit::Microseconds),
             "ms" => Ok(polars::prelude::TimeUnit::Milliseconds),
-            s => Err(JlrsError::exception(format!("Unknown time unit: {}", s)))?,
+            s => Err(JuliaPolarsError::TimeUnitError(s.to_string()))?,
           }
         };
         let get_tz = || -> JlrsResult<_> {
@@ -146,7 +147,7 @@ impl polars_value_type_t {
                 let v = unsafe { v.as_value() };
                 Ok(v.track_shared::<polars_value_type_t>()?.inner.clone())
               },
-              Err(e) => Err(JlrsError::exception(format!("Error calling intoraw: {:?}", e)))?,
+              Err(e) => Err(JuliaPolarsError::function_call("Polars.DataTypes.intoraw", e))?,
             },
           }
         };
@@ -207,7 +208,7 @@ impl polars_value_type_t {
             };
             polars::prelude::DataType::Decimal(precision, scale)
           },
-          _ => return Err(JlrsError::exception(format!("Unknown data type: {}", name)))?,
+          s => return Err(JuliaPolarsError::UnsupportedDataType(s.to_string()))?,
         };
         Ok(leak_value(polars_value_type_t { inner: dtype }))
       },

@@ -1,4 +1,4 @@
-use jlrs::{convert::{into_julia::IntoJulia, unbox::Unbox}, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::typed::TypedValue, Weak}, types::{abstract_type::IO, construct_type::ConstructType, typecheck::Typecheck}}, error::JlrsError, inline_static_ref, prelude::*, weak_handle};
+use jlrs::{convert::{into_julia::IntoJulia, unbox::Unbox}, data::{layout::valid_layout::ValidLayout, managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::typed::TypedValue, Weak}, types::{abstract_type::IO, construct_type::ConstructType, typecheck::Typecheck}}, inline_static_ref, prelude::*, weak_handle};
 
 use crate::errors::JuliaPolarsError;
 
@@ -63,12 +63,12 @@ pub(crate) fn unsafe_write<'scope, T: Target<'scope>>(tgt: &T, io: &CCallRef<'sc
     let arg1 = (bytes.as_ptr() as *mut u8).into_julia(&mut frame);
     let arg2 = bytes.len().into_julia(&mut frame);
     unsafe { unsafe_write.call(&mut frame, [arg0, arg1, arg2]) }
-      .map_err(|_| JlrsError::exception("Failed to call unsafe_write"))?;
+      .map_err(|e| JuliaPolarsError::function_call("Base.unsafe_write", e))?;
     Ok(())
   })
 }
 
-pub type TypedVec<'scope, 'data, T> = TypedVector<'scope, 'data, TypedValue<'scope, 'data, T>>;
+type TypedVec<'scope, 'data, T> = TypedVector<'scope, 'data, TypedValue<'scope, 'data, T>>;
 
 pub trait TypedVecExt<'scope, 'data, T> {
   fn extract_box<U, F>(&self, f: F) -> JlrsResult<Vec<U>>
@@ -86,13 +86,14 @@ impl<'scope, 'data, T> TypedVecExt<'scope, 'data, T> for TypedVec<'scope, 'data,
     unsafe { self.managed_data() }
       .as_slice()
       .into_iter()
-      .map(|c| match c.load(std::sync::atomic::Ordering::Relaxed) {
+      .enumerate()
+      .map(|(i, c)| match c.load(std::sync::atomic::Ordering::Relaxed) {
         Some(c) => {
           let val = unsafe { c.as_managed() };
           let val = unsafe { val.track_shared()? };
           Ok(f(&val))
         },
-        None => Err(JlrsError::exception("Could not load column"))?,
+        None => Err(JuliaPolarsError::ExtractBoxError(i))?,
       })
       .collect()
   }
@@ -105,7 +106,7 @@ pub(crate) trait JuliaNamedTupleExt<'scope, 'data> {
 impl<'scope, 'data> JuliaNamedTupleExt<'scope, 'data> for NamedTuple<'scope, 'data> {
   fn get_value(&self, handle: &impl Target<'scope>, key: &str) -> JlrsResult<Value<'scope, 'data>> {
     let Some(v) = self.get(handle, key) else {
-      return Err(JlrsError::exception(format!("Missing {}", key)))?;
+      return Err(JuliaPolarsError::NamedTupleMissingField(key.to_string()))?;
     };
     Ok(unsafe { v.as_value() })
   }

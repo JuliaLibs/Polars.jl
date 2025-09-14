@@ -1,7 +1,7 @@
 use polars::prelude::*;
-use jlrs::{data::managed::{ccall_ref::{CCallRef, CCallRefRet}, string::StringRet, value::typed::TypedValue}, error::JlrsError, prelude::*};
+use jlrs::{data::managed::{string::StringRet, value::typed::TypedValue}, prelude::*};
 
-use crate::{polars_value_type_t, utils::{leak_string, leak_value, CCallRefExt}, values::{polars_value_t, AnyValueRet}, ValueTypeRef};
+use crate::{errors::JuliaPolarsError, polars_value_type_t, utils::{leak_string, leak_value, CCallRefExt}, values::{polars_value_t, AnyValueRet}, ValueTypeRef, ValueTypeRet};
 
 
 #[derive(Debug, OpaqueType)]
@@ -10,8 +10,8 @@ pub struct polars_column_t {
   pub(crate) inner: Column,
 }
 
-pub type ColumnRet = CCallRefRet<polars_column_t>;
-pub type ColumnRef<'scope> = CCallRef<'scope, ColumnValue<'scope, 'static>>;
+pub type ColumnRet = jlrs::data::managed::ccall_ref::CCallRefRet<polars_column_t>;
+pub type ColumnRef<'scope> = jlrs::data::managed::ccall_ref::CCallRef<'scope, ColumnValue<'scope, 'static>>;
 pub type ColumnValue<'scope, 'data> = TypedValue<'scope, 'data, polars_column_t>;
 
 
@@ -30,7 +30,7 @@ impl polars_column_t {
     self.inner.null_count()
   }
 
-  pub fn dtype(&self) -> CCallRefRet<polars_value_type_t> {
+  pub fn dtype(&self) -> ValueTypeRet {
     leak_value(polars_value_type_t { inner: self.inner.dtype().clone() })
   }
 
@@ -43,7 +43,7 @@ impl polars_column_t {
   }
 
   pub fn get(&self, idx: usize) -> JlrsResult<AnyValueRet> {
-    let v = self.inner.get(idx).map_err(JlrsError::other)?;
+    let v = self.inner.get(idx).map_err(JuliaPolarsError::from)?;
     Ok(leak_value(polars_value_t { inner: v.into_static() }))
   }
 }

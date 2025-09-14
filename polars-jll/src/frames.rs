@@ -1,7 +1,7 @@
 use polars::prelude::*;
-use jlrs::{data::{managed::{ccall_ref::{CCallRef, CCallRefRet}, value::typed::TypedValue}, types::abstract_type::IO}, error::JlrsError, prelude::*, weak_handle};
+use jlrs::{data::{managed::{ccall_ref::CCallRef, value::typed::TypedValue}, types::abstract_type::IO}, prelude::*, weak_handle};
 
-use crate::{errors::JuliaPolarsError, polars_column_t, utils::{leak_value, IOWrapper, TypedVecExt}, CCallResult, ColumnValue};
+use crate::{errors::JuliaPolarsError, polars_column_t, utils::{leak_value, IOWrapper, TypedVecExt}, ColumnRet, ColumnValue};
 
 #[derive(Debug, OpaqueType)]
 #[allow(non_camel_case_types)]
@@ -9,8 +9,8 @@ pub struct polars_dataframe_t {
   pub(crate) inner: DataFrame,
 }
 
-pub type DataFrameRet = CCallRefRet<polars_dataframe_t>;
-pub type DataFrameRef<'scope> = CCallRef<'scope, DataFrameValue<'scope, 'static>>;
+pub type DataFrameRet = jlrs::data::managed::ccall_ref::CCallRefRet<polars_dataframe_t>;
+pub type DataFrameRef<'scope> = jlrs::data::managed::ccall_ref::CCallRef<'scope, DataFrameValue<'scope, 'static>>;
 pub type DataFrameValue<'scope, 'data> = TypedValue<'scope, 'data, polars_dataframe_t>;
 
 impl polars_dataframe_t {
@@ -29,15 +29,15 @@ impl polars_dataframe_t {
 
   pub fn read_parquet(path: JuliaString) -> JlrsResult<DataFrameRet> {
     let path = path.as_str()?;
-    let file = std::fs::File::open(path).map_err(JlrsError::other)?;
-    let df = ParquetReader::new(file).finish().map_err(JlrsError::other)?;
+    let file = std::fs::File::open(path).map_err(JuliaPolarsError::from)?;
+    let df = ParquetReader::new(file).finish().map_err(JuliaPolarsError::from)?;
     Ok(leak_value(Self { inner: df }))
   }
 
   pub fn write_parquet(&mut self, path: JuliaString) -> JlrsResult<()> {
     let path = path.as_str()?;
-    let file = std::fs::File::create(path).map_err(JlrsError::other)?;
-    ParquetWriter::new(file).finish(&mut self.inner).map_err(JlrsError::other)?;
+    let file = std::fs::File::create(path).map_err(JuliaPolarsError::from)?;
+    ParquetWriter::new(file).finish(&mut self.inner).map_err(JuliaPolarsError::from)?;
     Ok(())
   }
 
@@ -46,16 +46,16 @@ impl polars_dataframe_t {
       Ok(handle) => {
         use std::io::Write;
         let mut w = IOWrapper::new(&handle, &io);
-        writeln!(w, "{}", self.inner).map_err(JlrsError::other)?;
+        writeln!(w, "{}", self.inner).map_err(JuliaPolarsError::from)?;
         Ok(())
       },
       Err(_) => JuliaPolarsError::WeakHandleError("polars_dataframe_t::show").panic(),
     }
   }
 
-  pub fn get_column(&self, name: JuliaString) -> CCallResult<polars_column_t> {
+  pub fn get_column(&self, name: JuliaString) -> JlrsResult<ColumnRet> {
     let name = name.as_str()?;
-    let col = self.inner.column(name).map_err(JlrsError::other)?;
+    let col = self.inner.column(name).map_err(JuliaPolarsError::from)?;
     Ok(leak_value(polars_column_t { inner: col.clone() }))
   }
 }

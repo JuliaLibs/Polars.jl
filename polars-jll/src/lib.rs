@@ -2,7 +2,7 @@ use core::panic;
 
 use jlrs::{
   data::{
-    managed::{ccall_ref::{CCallRef, CCallRefRet}, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::ValueRet},
+    managed::{ccall_ref::CCallRef, named_tuple::NamedTuple, string::StringRet, symbol::SymbolRet, value::ValueRet},
     types::abstract_type::IO
   }, prelude::*
 };
@@ -13,8 +13,6 @@ pub mod columns;
 pub mod frames;
 pub mod values;
 pub mod value_types;
-
-pub type CCallResult<T> = JlrsResult<CCallRefRet<T>>;
 
 pub use errors::polars_error_t;
 pub use frames::{polars_dataframe_t, DataFrameRef, DataFrameRet, DataFrameValue};

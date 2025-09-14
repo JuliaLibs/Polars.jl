@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use jlrs::{data::managed::{string::StringRet, value::ValueRet}, error::JlrsError, runtime::handle::ccall::throw_exception, weak_handle};
 pub use jlrs::prelude::*;
 use polars::error::PolarsError;
@@ -9,14 +11,42 @@ pub enum JuliaPolarsError {
   #[error("Julia error: {0}")]
   JlrsError(Box<JlrsError>),
   #[error("Polars error: {0}")]
-  PolarsError(PolarsError),
+  PolarsError(#[from] PolarsError),
+  #[error("Io error: {0}")]
+  IoError(#[from] std::io::Error),
   #[error("{0} called without a valid Julia context")]
   WeakHandleError(&'static str),
+  #[error("Error calling Julia function {0}")]
+  CallFunctionError(&'static str, Option<String>),
+  #[error("Error extracting value at index {0}")]
+  ExtractBoxError(usize),
+  #[error("Missing field {0} in NamedTuple")]
+  NamedTupleMissingField(String),
+  #[error("Unknown time unit: {0}")]
+  TimeUnitError(String),
+  #[error("Unsupported data type: {0}")]
+  UnsupportedDataType(String),
+  #[error("Unsupported AnyValue variant: {0}")]
+  UnsupportedAnyValue(&'static str),
+}
+
+impl From<JuliaPolarsError> for Box<JlrsError> {
+  fn from(err: JuliaPolarsError) -> Self {
+    match err {
+      JuliaPolarsError::JlrsError(e) => e,
+      JuliaPolarsError::PolarsError(e) => Box::new(JlrsError::other(e)),
+      _ => Box::new(JlrsError::exception(err.to_string())),
+    }
+  }
 }
 
 impl JuliaPolarsError {
   pub fn panic(self) -> ! {
     panic!("{}", self.to_string())
+  }
+
+  pub fn function_call<E: Debug>(func: &'static str, e: E) -> Self {
+    JuliaPolarsError::CallFunctionError(func, Some(format!("{e:?}")))
   }
 }
 
